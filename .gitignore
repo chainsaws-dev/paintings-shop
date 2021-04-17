@@ -1,0 +1,6 @@
+settings.json
+cert.pem
+key.pem
+public/uploads/*
+logs/*
+shopping-lists-and-recipes
