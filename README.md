@@ -1,6 +1,5 @@
-# Web server for recipes and shopping list
-Web server made for storing data on shopping lists and recipes based on GO.
-Made as easy to handle as possible.  
+# Web server for paintings shop
+Web server made for storing data paintings and e-commerce based on GO.
 (in development)
 
 Frontend source for this backend is available [here](https://github.com/chainsaws-dev/shopping-lists-and-recipes)
