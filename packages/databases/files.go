@@ -160,7 +160,7 @@ func PostgreSQLFileDelete(fileid int, dbc *sql.DB) error {
 		return err
 	}
 
-	sqlreq = `select setval('"public"."Files_id_seq"',(select COALESCE(max("id"),1) from "public"."Files")::bigint);`
+	sqlreq = `select setval('"references"."files_id_seq"',(select COALESCE(max("id"),1) from "references"."files")::bigint);`
 
 	_, err = dbc.Exec(sqlreq)
 

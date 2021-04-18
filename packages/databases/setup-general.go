@@ -282,7 +282,7 @@ func PostgreSQLCreateRole(roleName string, password string, dbName string, dbc *
 
 	PostgreSQLRollbackIfError(err, true, dbc)
 
-	sqlreq = fmt.Sprintf(`GRANT UPDATE, USAGE ON ALL SEQUENCES IN SCHEMA %s TO %s;`, "public, secret", roleName)
+	sqlreq = fmt.Sprintf(`GRANT UPDATE, USAGE ON ALL SEQUENCES IN SCHEMA %s TO %s;`, strings.Join(Schemas, ", "), roleName)
 
 	_, err = dbc.Exec(sqlreq)
 
