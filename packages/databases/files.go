@@ -19,7 +19,7 @@ func PostgreSQLFileChange(f File, dbc *sql.DB) (int, error) {
 	sqlreq := `SELECT 
 					COUNT(*)
 				FROM
-					public."Files"
+					"references".files
 				WHERE 
 					file_id=$1`
 
@@ -50,7 +50,7 @@ func PostgreSQLFileInsert(f File, dbc *sql.DB) (int, error) {
 	dbc.Exec("BEGIN")
 
 	sqlreq := `INSERT INTO 
-			public."Files"
+			"references".files
 			(filename, filesize, filetype, file_id) 
 		  VALUES 
 			($1, $2, $3, $4) RETURNING id;`
@@ -82,7 +82,7 @@ func PostgreSQLFileUpdate(f File, dbc *sql.DB) (int, error) {
 	sqlreq := `SELECT 
 					id
 				FROM
-					public."Files"
+					"references".files
 				WHERE 
 					file_id=$1`
 
@@ -100,7 +100,7 @@ func PostgreSQLFileUpdate(f File, dbc *sql.DB) (int, error) {
 	dbc.Exec("BEGIN")
 
 	sqlreq = `UPDATE 
-				public."Files"
+				"references".files
 				SET (filename, filesize, filetype, file_id) = ($1, $2, $3, $4)
 				WHERE
 					file_id=$4;`
@@ -128,7 +128,7 @@ func PostgreSQLFileDelete(fileid int, dbc *sql.DB) error {
 	sqlreq := `SELECT 
 				file_id
 			FROM 
-				public."Files"
+				"references".files
 			WHERE id=$1;`
 
 	row := dbc.QueryRow(sqlreq, fileid)
@@ -141,7 +141,7 @@ func PostgreSQLFileDelete(fileid int, dbc *sql.DB) error {
 	}
 
 	sqlreq = `DELETE FROM 
-				public."Files"
+				"references".files
 			WHERE id=$1;`
 
 	_, err = dbc.Exec(sqlreq, fileid)
@@ -188,7 +188,7 @@ func PostgreSQLFilesSelect(page int, limit int, dbc *sql.DB) (FilesResponse, err
 	sqlreq := `SELECT 
 				COUNT(*)
 			FROM 
-				public."Files"
+				"references".files
 			WHERE
 				id<>1;`
 
@@ -216,7 +216,7 @@ func PostgreSQLFilesSelect(page int, limit int, dbc *sql.DB) (FilesResponse, err
 							files.filetype,
 							files.file_id
 						FROM 
-							public."Files" AS files
+							"references".files AS files
 						WHERE
 							id<>1
 						ORDER BY files.id

@@ -1,4 +1,4 @@
-// Package main - Сервер книги рецептов и списка покупок
+// Package main - Сервер магазина по продаже картин
 package main
 
 import (
