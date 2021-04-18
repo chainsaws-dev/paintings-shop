@@ -3,6 +3,7 @@ module paintings-shop
 go 1.16
 
 require (
+	github.com/bakape/thumbnailer/v2 v2.6.7
 	github.com/go-mail/mail v2.3.1+incompatible
 	github.com/gorilla/securecookie v1.1.1
 	github.com/lib/pq v1.10.0
