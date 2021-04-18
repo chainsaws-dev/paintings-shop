@@ -4,6 +4,7 @@ import (
 	"crypto/sha1"
 	"errors"
 	"fmt"
+	"image/jpeg"
 	"image/png"
 	"io"
 	"log"
@@ -103,11 +104,17 @@ func fileUpload(w http.ResponseWriter, req *http.Request, role string) (database
 			},
 		})
 
+		var previewname string
+
 		if shared.HandleInternalServerError(w, err) {
 			return NewFile, err
 		}
 
-		previewname := basename + "pv.png"
+		if strings.ToLower(ext) == "png" {
+			previewname = basename + "pv.png"
+		} else {
+			previewname = basename + "pv.jpg"
+		}
 
 		linktopreview := strings.Join([]string{"uploads", previewname}, "/")
 
@@ -121,7 +128,11 @@ func fileUpload(w http.ResponseWriter, req *http.Request, role string) (database
 
 		defer nfp.Close()
 
-		png.Encode(nfp, thumb)
+		if strings.ToLower(ext) == "png" {
+			png.Encode(nfp, thumb)
+		} else {
+			jpeg.Encode(nfp, thumb, &jpeg.Options{Quality: jpeg.DefaultQuality})
+		}
 
 		NewFile.PreviewID = previewname
 
