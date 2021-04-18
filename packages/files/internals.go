@@ -96,7 +96,12 @@ func fileUpload(w http.ResponseWriter, req *http.Request, role string) (database
 		NewFile.FileID = filename
 
 		// Создаем превьюшку
-		_, thumb, err := thumbnailer.Process(f, thumbnailer.Options{})
+		_, thumb, err := thumbnailer.Process(f, thumbnailer.Options{
+			ThumbDims: thumbnailer.Dims{
+				Width:  440,
+				Height: 248,
+			},
+		})
 
 		if shared.HandleInternalServerError(w, err) {
 			return NewFile, err
