@@ -98,6 +98,10 @@ func fileUpload(w http.ResponseWriter, req *http.Request, role string) (database
 		// Создаем превьюшку
 		_, thumb, err := thumbnailer.Process(f, thumbnailer.Options{})
 
+		if shared.HandleInternalServerError(w, err) {
+			return NewFile, err
+		}
+
 		previewname := basename + "pv.png"
 
 		linktopreview := strings.Join([]string{"uploads", previewname}, "/")
