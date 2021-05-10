@@ -16,8 +16,8 @@ import (
 
 // Список типовых ошибок
 var (
-	ErrHeaderDeleteNotFilled = errors.New("Не заполнен обязательный параметр для удаления файла: FileID")
-	ErrUnsupportedFileType   = errors.New("Неподдерживаемый тип файла")
+	ErrHeaderDeleteNotFilled = errors.New("не заполнен обязательный параметр для удаления файла: FileID")
+	ErrUnsupportedFileType   = errors.New("неподдерживаемый тип файла")
 )
 
 // HandleFiles - обрабатывает POST, GET и DELETE запросы для работы с файлами
@@ -99,7 +99,7 @@ func HandleFiles(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		shared.WriteObjectToJSON(w, FilesResponse)
+		shared.WriteObjectToJSON(false, w, FilesResponse)
 
 	case req.Method == http.MethodPost:
 
@@ -113,7 +113,7 @@ func HandleFiles(w http.ResponseWriter, req *http.Request) {
 				return
 			}
 
-			shared.WriteObjectToJSON(w, furesp)
+			shared.WriteObjectToJSON(false, w, furesp)
 
 		} else {
 			shared.HandleOtherError(w, shared.ErrForbidden.Error(), shared.ErrForbidden, http.StatusForbidden)

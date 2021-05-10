@@ -454,7 +454,7 @@ func HandleUsers(w http.ResponseWriter, req *http.Request) {
 					}
 				}
 
-				shared.WriteObjectToJSON(w, usersresp)
+				shared.WriteObjectToJSON(false, w, usersresp)
 
 			} else {
 				shared.HandleOtherError(w, ErrHeadersNotFilled.Error(), ErrHeadersNotFilled, http.StatusBadRequest)
@@ -549,7 +549,7 @@ func HandleUsers(w http.ResponseWriter, req *http.Request) {
 			}
 
 			// Пишем в тело ответа
-			shared.WriteObjectToJSON(w, User)
+			shared.WriteObjectToJSON(false, w, User)
 
 		} else {
 			shared.HandleOtherError(w, ErrForbidden.Error(), ErrForbidden, http.StatusForbidden)
@@ -683,7 +683,7 @@ func HandleSessions(w http.ResponseWriter, req *http.Request) {
 					}
 				}
 
-				shared.WriteObjectToJSON(w, sessionsresp)
+				shared.WriteObjectToJSON(false, w, sessionsresp)
 
 			} else {
 				shared.HandleOtherError(w, ErrHeadersNotFilled.Error(), ErrHeadersNotFilled, http.StatusBadRequest)
@@ -807,7 +807,7 @@ func CurrentUser(w http.ResponseWriter, req *http.Request) {
 				return
 			}
 
-			shared.WriteObjectToJSON(w, FoundUser)
+			shared.WriteObjectToJSON(false, w, FoundUser)
 		} else {
 			shared.HandleOtherError(w, ErrForbidden.Error(), ErrForbidden, http.StatusForbidden)
 		}
@@ -917,7 +917,7 @@ func CurrentUser(w http.ResponseWriter, req *http.Request) {
 			}
 
 			// Пишем в тело ответа
-			shared.WriteObjectToJSON(w, User)
+			shared.WriteObjectToJSON(false, w, User)
 
 		} else {
 			shared.HandleOtherError(w, ErrForbidden.Error(), ErrForbidden, http.StatusForbidden)

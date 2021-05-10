@@ -11,15 +11,17 @@ import (
 
 // Список общих типовых ошибок
 var (
-	ErrNotAllowedMethod       = errors.New("Запрошен недопустимый метод для файлов")
+	ErrNotAllowedMethod       = errors.New("запрошен недопустимый метод для файлов")
 	ErrNoKeyInParams          = errors.New("API ключ не указан в параметрах")
 	ErrWrongKeyInParams       = errors.New("API ключ не зарегистрирован")
-	ErrNotAuthorized          = errors.New("Пройдите авторизацию")
-	ErrNotAuthorizedTwoFactor = errors.New("Пройдите авторизацию по второму фактору")
-	ErrForbidden              = errors.New("Доступ запрещён")
-	ErrHeadersFetchNotFilled  = errors.New("Не заполнены обязательные параметры запроса списка файлов: Page, Limit")
-	ErrFkeyViolation          = errors.New("Нельзя удалять записи, на которые имеются ссылки")
-	ErroNoRowsInResult        = errors.New("Не найдено ни одной записи для удаления")
+	ErrNotAuthorized          = errors.New("пройдите авторизацию")
+	ErrNotAuthorizedTwoFactor = errors.New("пройдите авторизацию по второму фактору")
+	ErrForbidden              = errors.New("доступ запрещён")
+	ErrHeadersFetchNotFilled  = errors.New("не заполнены обязательные параметры запроса списка файлов: Page, Limit")
+	ErrFkeyViolation          = errors.New("нельзя удалять записи, на которые имеются ссылки")
+	ErroNoRowsInResult        = errors.New("не найдено ни одной записи для удаления")
+
+	ErrHeadersNotFilled = errors.New("не заполнены обязательные параметры запроса")
 )
 
 // CurrentPrefix - префикс URL
@@ -62,7 +64,7 @@ func HandleInternalServerError(w http.ResponseWriter, err error) bool {
 
 		w.WriteHeader(Response.Error.Code)
 
-		WriteObjectToJSON(w, Response)
+		WriteObjectToJSON(false, w, Response)
 
 		return true
 	}
@@ -89,7 +91,7 @@ func HandleBadRequestError(w http.ResponseWriter, err error) bool {
 
 		w.WriteHeader(Response.Error.Code)
 
-		WriteObjectToJSON(w, Response)
+		WriteObjectToJSON(false, w, Response)
 
 		return true
 	}
@@ -116,7 +118,7 @@ func HandleOtherError(w http.ResponseWriter, message string, err error, statusco
 
 		w.WriteHeader(Response.Error.Code)
 
-		WriteObjectToJSON(w, Response)
+		WriteObjectToJSON(false, w, Response)
 
 		return true
 	}
@@ -138,7 +140,7 @@ func HandleSuccessMessage(w http.ResponseWriter, message string) {
 
 	log.Println(message)
 
-	WriteObjectToJSON(w, Response)
+	WriteObjectToJSON(false, w, Response)
 
 }
 
@@ -152,12 +154,25 @@ func FindInStringSlice(slice []string, val string) (int, bool) {
 	return -1, false
 }
 
-// WriteObjectToJSON - записывает в ответ произвольный объект
-func WriteObjectToJSON(w http.ResponseWriter, v interface{}) {
+// WriteObjectToJSON - записывает в ответ произвольный объект в форматe JSON
+//
+//	Параметры
+//
+//	w - ResponseWriter в который будут записаны байты
+//	v - произвольный объект
+//	ind - добавить отступы или нет
+func WriteObjectToJSON(ind bool, w http.ResponseWriter, v interface{}) {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	js, err := json.Marshal(v)
+	var js []byte
+	var err error
+
+	if ind {
+		js, err = json.MarshalIndent(v, "  ", "    ")
+	} else {
+		js, err = json.Marshal(v)
+	}
 
 	if HandleInternalServerError(w, err) {
 		return

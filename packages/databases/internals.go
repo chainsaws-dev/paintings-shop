@@ -13,8 +13,6 @@ import (
 var (
 	ErrFirstNotDelete        = errors.New("первая запись в списке файлов техническая и не подлежит удалению")
 	ErrFirstNotUpdate        = errors.New("первая запись в списке файлов техническая и не подлежит изменению")
-	ErrRecipeNotFound        = errors.New("в таблице рецептов не найден указанный id")
-	ErrShoppingListNotFound  = errors.New("не найдено ни одной записи в списке покупок с указанным названием")
 	ErrEmptyPassword         = errors.New("не допустимо использование паролей с длинной менее шести символов")
 	ErrNoUserWithEmail       = errors.New("электронная почта не найдена")
 	ErrNoHashForUser         = errors.New("хеш пароля не найден")
@@ -30,6 +28,8 @@ var (
 	ErrNoConnection          = errors.New("база данных недоступна")
 	ErrDatabaseAlreadyExists = errors.New("база данных с указанным именем уже существует")
 	ErrTablesAlreadyExist    = errors.New("база данных содержит таблицы")
+	ErrContryNotFound        = errors.New("в таблице стран не найдено указанного ID")
+	ErrNoDeleteIfLinksExist  = errors.New("нельзя удалить запись на которую имеются ссылки в других таблицах")
 )
 
 // PostgreSQLGetConnString - получаем строку соединения для PostgreSQL

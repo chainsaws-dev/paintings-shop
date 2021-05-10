@@ -104,7 +104,7 @@ func SecondFactor(w http.ResponseWriter, req *http.Request) {
 				result.UserID = Totp.UserID
 			}
 
-			shared.WriteObjectToJSON(w, result)
+			shared.WriteObjectToJSON(false, w, result)
 
 		} else {
 			shared.HandleOtherError(w, signinupout.ErrForbidden.Error(), signinupout.ErrForbidden, http.StatusForbidden)

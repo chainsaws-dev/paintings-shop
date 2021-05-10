@@ -215,7 +215,7 @@ func secretauth(w http.ResponseWriter, req *http.Request, AuthRequest authentica
 			}
 		}
 
-		shared.WriteObjectToJSON(w, AuthResponse)
+		shared.WriteObjectToJSON(false, w, AuthResponse)
 
 	} else {
 		shared.HandleOtherError(w, ErrNotAuthorized.Error(), ErrNotAuthorized, http.StatusUnauthorized)
