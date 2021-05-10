@@ -148,7 +148,7 @@ func Countries(w http.ResponseWriter, req *http.Request) {
 
 	case req.Method == http.MethodPost:
 
-		if setup.ServerSettings.CheckRoleForChange(role, "Counterparties") {
+		if setup.ServerSettings.CheckRoleForChange(role, "Countries") {
 
 			// Читаем тело запроса в структуру
 			var OrgInfo databases.Country
@@ -180,7 +180,7 @@ func Countries(w http.ResponseWriter, req *http.Request) {
 
 	case req.Method == http.MethodDelete:
 
-		if setup.ServerSettings.CheckRoleForDelete(role, "Counterparties") {
+		if setup.ServerSettings.CheckRoleForDelete(role, "Countries") {
 
 			ItemID := req.Header.Get("ItemID")
 

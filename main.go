@@ -10,6 +10,7 @@ import (
 	"os"
 	"paintings-shop/packages/files"
 	"paintings-shop/packages/gzipwrap"
+	"paintings-shop/packages/references"
 	"paintings-shop/packages/secondfactor"
 	"paintings-shop/packages/setup"
 	"paintings-shop/packages/shared"
@@ -54,8 +55,8 @@ func main() {
 	http.Handle("/uploads/", http.StripPrefix("/uploads", http.FileServer(http.Dir("./public/uploads"))))
 
 	// Перенаправляем все запросы по разделам на индекс
-	http.HandleFunc("/recipes/", RedirectToIndex)
-	http.HandleFunc("/shopping-list/", RedirectToIndex)
+	// TODO
+	// Добавить новые пути навигации
 	http.HandleFunc("/admin/", RedirectToIndex)
 	http.HandleFunc("/auth/", RedirectToIndex)
 	http.HandleFunc("/confirm-email/", RedirectToIndex)
@@ -87,6 +88,9 @@ func main() {
 	http.HandleFunc("/api/ConfirmEmail/Send", signinupout.ResendEmail)
 	http.HandleFunc("/api/PasswordReset", signinupout.ResetPassword)
 	http.HandleFunc("/api/PasswordReset/Send", signinupout.RequestResetEmail)
+
+	// Справочники
+	http.HandleFunc("/api/References/Countries", references.Countries)
 
 	if initpar.CleanTokens {
 		go signinupout.RegularConfirmTokensCleanup()
