@@ -131,6 +131,8 @@ func PostgreSQLSingleCountrySelect(ID int, dbc *sql.DB) (Country, error) {
 					"references".countries
 				WHERE 
 					id=$1
+				ORDER BY
+					id
 				LIMIT 1;`
 
 	row = dbc.QueryRow(sqlreq, ID)
