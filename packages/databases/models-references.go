@@ -50,3 +50,26 @@ type CountriesResponse struct {
 	Offset    int
 	Limit     int
 }
+
+// Currency - тип для хранения информации
+// о валюте в базе данных
+type Currency struct {
+	ID      int
+	RusName string
+	EngName string
+	LatISO  string
+	DigISO  string
+	Symbol  string
+}
+
+// CurrenciesList - тип для хранения списка валют
+type CurrenciesList []Currency
+
+// CurrenciesResponse - тип для возврата с ответом,
+// описывающий список стран для постраничной разбивки
+type CurrenciesResponse struct {
+	Currencies CurrenciesList
+	Total      int
+	Offset     int
+	Limit      int
+}

@@ -13,10 +13,10 @@ import (
 
 // Список типовых ошибок
 var (
-	ErrRoleNotFound         = errors.New("Роль с указанным именем не найдена")
-	ErrDatabaseNotSupported = errors.New("Не реализована поддержка базы данных")
-	ErrDatabaseOffline      = errors.New("База данных недоступна")
-	ErrUsupportedDBType     = errors.New("Указан неподдерживаемый тип базы данных")
+	ErrRoleNotFound         = errors.New("роль с указанным именем не найдена")
+	ErrDatabaseNotSupported = errors.New("не реализована поддержка базы данных")
+	ErrDatabaseOffline      = errors.New("база данных недоступна")
+	ErrUsupportedDBType     = errors.New("указан неподдерживаемый тип базы данных")
 )
 
 // AutoFillRoles - автозаполняет список ролей для SQL сервера
@@ -268,6 +268,8 @@ func formRightsArray(rule TRule) []string {
 func (ss WServerSettings) CheckRoleForRead(RoleName string, AppPart string) bool {
 
 	switch {
+	case AppPart == "Currencies":
+		return ss.CheckExistingRole(RoleName)
 	case AppPart == "Countries":
 		return ss.CheckExistingRole(RoleName)
 	case AppPart == "CurrentUser":
@@ -298,6 +300,8 @@ func (ss WServerSettings) CheckRoleForRead(RoleName string, AppPart string) bool
 // CheckRoleForChange - проверяет роль для разрешения изменений в разделе системы
 func (ss WServerSettings) CheckRoleForChange(RoleName string, AppPart string) bool {
 	switch {
+	case AppPart == "Currencies":
+		return checkAdmin(RoleName)
 	case AppPart == "Countries":
 		return checkAdmin(RoleName)
 	case AppPart == "CurrentUser":
@@ -322,6 +326,8 @@ func (ss WServerSettings) CheckRoleForChange(RoleName string, AppPart string) bo
 // CheckRoleForDelete - проверяет роль для разрешения доступа к удалению элементов раздела системы
 func (ss WServerSettings) CheckRoleForDelete(RoleName string, AppPart string) bool {
 	switch {
+	case AppPart == "Currencies":
+		return checkAdmin(RoleName)
 	case AppPart == "Countries":
 		return checkAdmin(RoleName)
 	case AppPart == "CurrentUser":

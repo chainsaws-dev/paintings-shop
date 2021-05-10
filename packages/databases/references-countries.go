@@ -10,9 +10,7 @@ import (
 	_ "github.com/lib/pq" // Драйвер PostgreSQL
 )
 
-// region * выборка * контрагенты *
-
-// PostgreSQLCounterpartiesSelect - получает список контрагентов
+// PostgreSQLCountriesSelect - получает список стран
 //
 // Параметры:
 //
@@ -88,11 +86,11 @@ func PostgreSQLCountriesSelect(page int, limit int, dbc *sql.DB) (CountriesRespo
 	return result, nil
 }
 
-// PostgreSQLSingleCounterpartySelect - получает данные конкретного контрагента
+// PostgreSQLSingleCountrySelect - получает данные конкретной страны
 //
 // Параметры:
 //
-// ID - номер запроса налогвика в базе данных
+// ID - номер страны в базе данных
 //
 func PostgreSQLSingleCountrySelect(ID int, dbc *sql.DB) (Country, error) {
 
@@ -150,11 +148,7 @@ func PostgreSQLSingleCountrySelect(ID int, dbc *sql.DB) (Country, error) {
 	return result, nil
 }
 
-// endregion
-
-// region * изменение * контрагенты *
-
-// PostgreSQLCountriesChange - определяет существует ли данный контрагент и вызывает
+// PostgreSQLCountriesChange - определяет существует ли данная страна и вызывает
 // INSERT или UPDATE в зависимости от результата проверки
 func PostgreSQLCountriesChange(cp Country, dbc *sql.DB) (Country, error) {
 
@@ -173,7 +167,7 @@ func PostgreSQLCountriesChange(cp Country, dbc *sql.DB) (Country, error) {
 	return cp, err
 }
 
-// PostgreSQLFindCountry - ищет контрагента по ID, а затем по ИНН и КПП
+// PostgreSQLFindCountry - ищет страну по ID
 func PostgreSQLFindCountry(cp Country, dbc *sql.DB) (bool, Country, error) {
 
 	sqlreq := `SELECT 
@@ -200,7 +194,7 @@ func PostgreSQLFindCountry(cp Country, dbc *sql.DB) (bool, Country, error) {
 
 }
 
-// PostgreSQLCounterpartiesInsert - добавляет нового контрагента
+// PostgreSQLCountriesInsert - добавляет новую страну
 func PostgreSQLCountriesInsert(cp Country, dbc *sql.DB) (Country, error) {
 
 	dbc.Exec("BEGIN")
@@ -228,7 +222,7 @@ func PostgreSQLCountriesInsert(cp Country, dbc *sql.DB) (Country, error) {
 	return cp, nil
 }
 
-// PostgreSQLCounterpartiesUpdate - обновляет существующего контрагента
+// PostgreSQLCountriesUpdate - обновляет существующую страну
 func PostgreSQLCountriesUpdate(cp Country, dbc *sql.DB) (Country, error) {
 
 	dbc.Exec("BEGIN")
@@ -250,38 +244,14 @@ func PostgreSQLCountriesUpdate(cp Country, dbc *sql.DB) (Country, error) {
 	return cp, nil
 }
 
-// endregion
-
-// region * удаление * контрагенты *
-
-// PostgreSQLCountriesDelete - удаляет контрагента по номеру
+// PostgreSQLCountriesDelete - удаляет страну по номеру
 func PostgreSQLCountriesDelete(ID int, dbc *sql.DB) error {
-
-	sqlreq := `SELECT 
-					COUNT(*) 
-				FROM 
-					"references".addresses
-				WHERE 
-					country_id=$1;`
-
-	CountRow := dbc.QueryRow(sqlreq, ID)
-
-	var ItemsCount int
-	err := CountRow.Scan(&ItemsCount)
-
-	if err != nil {
-		return err
-	}
-
-	if ItemsCount > 0 {
-		return ErrNoDeleteIfLinksExist
-	}
 
 	dbc.Exec("BEGIN")
 
-	sqlreq = `DELETE FROM "references".countries WHERE id=$1;`
+	sqlreq := `DELETE FROM "references".countries WHERE id=$1;`
 
-	_, err = dbc.Exec(sqlreq, ID)
+	_, err := dbc.Exec(sqlreq, ID)
 
 	if err != nil {
 		return PostgreSQLRollbackIfError(err, false, dbc)
@@ -299,5 +269,3 @@ func PostgreSQLCountriesDelete(ID int, dbc *sql.DB) error {
 
 	return nil
 }
-
-// endregion

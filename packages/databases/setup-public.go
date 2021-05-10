@@ -11,7 +11,8 @@ func PostgreSQLCreateTablesPublic(dbc *sql.DB) {
 	var CreateStatements = NamedCreateStatements{
 		NamedCreateStatement{
 			TableName: "artworks",
-			CreateStatement: `CREATE TABLE public.artworks
+			CreateStatement: `
+			CREATE TABLE public.artworks
 			(
 				id bigserial NOT NULL,
 				name character varying(100) COLLATE pg_catalog."default",
@@ -19,15 +20,20 @@ func PostgreSQLCreateTablesPublic(dbc *sql.DB) {
 				file_id bigint,
 				date_created timestamp with time zone,
 				price bigint NOT NULL,
+				currency_id bigint NOT NULL,
 				type_id bigint NOT NULL,
 				width double precision,
 				height double precision,
 				depth double precision,
 				author_id bigint NOT NULL,
-				terms_id bigint NOT NULL,
+				terms_id bigint NOT NULL,				
 				CONSTRAINT artworks_pkey PRIMARY KEY (id),
 				CONSTRAINT artworks_author_id_fkey FOREIGN KEY (author_id)
 					REFERENCES "references".authors (id) MATCH FULL
+					ON UPDATE RESTRICT
+					ON DELETE RESTRICT,
+				CONSTRAINT artworks_currency_id_fkey FOREIGN KEY (currency_id)
+					REFERENCES "references".currencies (id) MATCH FULL
 					ON UPDATE RESTRICT
 					ON DELETE RESTRICT,
 				CONSTRAINT artworks_file_id_fkey FOREIGN KEY (file_id)
@@ -57,6 +63,11 @@ func PostgreSQLCreateTablesPublic(dbc *sql.DB) {
 			CREATE INDEX fki_artworks_author_id_fkey
 				ON public.artworks USING btree
 				(author_id ASC NULLS LAST)
+				TABLESPACE pg_default;
+			
+			CREATE INDEX fki_artworks_currency_id_fkey
+				ON public.artworks USING btree
+				(currency_id ASC NULLS LAST)
 				TABLESPACE pg_default;
 			
 			CREATE INDEX fki_artworks_terms_id_fkey
