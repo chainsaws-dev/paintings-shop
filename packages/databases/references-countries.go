@@ -54,7 +54,9 @@ func PostgreSQLCountriesSelect(page int, limit int, dbc *sql.DB) (CountriesRespo
 									location_precise
 							FROM 
 								"references".countries
-								LIMIT %v OFFSET %v;`, limit, offset)
+							ORDER BY
+								id
+							LIMIT %v OFFSET %v;`, limit, offset)
 	} else {
 		return result, ErrLimitOffsetInvalid
 	}
