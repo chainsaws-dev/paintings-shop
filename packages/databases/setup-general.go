@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/lib/pq"
-	_ "github.com/lib/pq" // Драйвер PostgreSQL
 )
 
 // Schemas - список схем, которые должны быть созданы перед созданием таблиц базы

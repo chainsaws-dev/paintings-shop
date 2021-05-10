@@ -19,7 +19,7 @@ import (
 
 // Список типовых ошибок
 var (
-	ErrWrongArgumentFormat = errors.New("Неверный формат данных для логина: ожидатся -admincred:example@example.ru@@password")
+	ErrWrongArgumentFormat = errors.New("неверный формат данных для логина: ожидатся -admincred:example@example.ru@@password")
 )
 
 // main - главная точка входа в программу

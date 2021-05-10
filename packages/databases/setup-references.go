@@ -149,6 +149,7 @@ func PostgreSQLCreateTablesReferences(dbc *sql.DB) {
 				eng_name character varying(50) COLLATE pg_catalog."default",
 				iso_lat_3 character varying(3) COLLATE pg_catalog."default",
 				iso_dig character varying(3) COLLATE pg_catalog."default",
+				symbol character varying(1) COLLATE pg_catalog."default",
 				CONSTRAINT currencies_pkey PRIMARY KEY (id)
 			)
 			
