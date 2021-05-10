@@ -333,27 +333,14 @@ func PostgreSQLCreateSchema(SchemaName string, dbc *sql.DB) {
 
 }
 
-// PostgreSQLInsertStatus - записывает статус с заданным именем
-//
-// Параметры:
-//
-// StatusName - имя статуса который нужно создать
-func PostgreSQLInsertStatus(StatusName string, dbc *sql.DB) {
-
-	log.Println("Записываем статус", StatusName)
-
-	sqlreq := `INSERT INTO "references".request_status(name) VALUES ($1);`
-
-	_, err := dbc.Exec(sqlreq, StatusName)
-
-	PostgreSQLRollbackIfError(err, true, dbc)
-
-}
-
 // PostgreSQLExecuteCreateStatement - выполняет sql запрос на создание таблицы и прекращает выполнение в случае ошибки
 func PostgreSQLExecuteCreateStatement(dbc *sql.DB, ncs NamedCreateStatement) {
 
-	log.Println("Создаём таблицу", ncs.TableName)
+	if strings.Contains(ncs.TableName, "fill") {
+		log.Println("Заполняем таблицу", strings.ReplaceAll(ncs.TableName, "fill", ""))
+	} else {
+		log.Println("Создаём таблицу", ncs.TableName)
+	}
 
 	_, err := dbc.Exec(ncs.CreateStatement)
 
