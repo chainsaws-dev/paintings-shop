@@ -147,7 +147,7 @@ func PostgreSQLSingleTermSelect(ID int, dbc *sql.DB) (Term, error) {
 				ON 
 					terms.currency_id=currencies.id					
 				WHERE 
-					id=$1
+					terms.id=$1
 				ORDER BY
 					terms.id
 				LIMIT 1;`
