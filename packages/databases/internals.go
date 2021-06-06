@@ -30,6 +30,7 @@ var (
 	ErrTablesAlreadyExist    = errors.New("база данных содержит таблицы")
 	ErrContryNotFound        = errors.New("в таблице стран не найдено указанного ID")
 	ErrCurrencyNotFound      = errors.New("в таблице валют не найдено указанного ID")
+	ErrTermNotFound          = errors.New("в таблице условий не найдено указанного ID")
 	ErrNoDeleteIfLinksExist  = errors.New("нельзя удалить запись на которую имеются ссылки в других таблицах")
 )
 

@@ -41,16 +41,25 @@ func PostgreSQLTermsSelect(page int, limit int, dbc *sql.DB) (TermsResponse, err
 
 	if PostgreSQLCheckLimitOffset(limit, offset) {
 		sqlreq = fmt.Sprintf(`SELECT 
-								id, 
-								delivery_time, 
-								returns, 
-								delivery_cost, 
-								name,
-								currency_id
-							FROM 
-								"references".terms
+									terms.id, 
+									terms.delivery_time, 
+									terms.returns, 
+									terms.delivery_cost, 
+									terms.name,
+									terms.currency_id,
+									currencies.rus_name,
+									currencies.eng_name,
+									currencies.iso_lat_3,
+									currencies.iso_dig,
+									currencies.symbol
+								FROM 
+									"references".terms
+								LEFT JOIN
+									"references".currencies
+								ON 
+									terms.currency_id=currencies.id	
 							ORDER BY
-								id
+								terms.id
 							LIMIT %v OFFSET %v;`, limit, offset)
 	} else {
 		return result, ErrLimitOffsetInvalid
@@ -65,13 +74,17 @@ func PostgreSQLTermsSelect(page int, limit int, dbc *sql.DB) (TermsResponse, err
 	for rows.Next() {
 
 		var cur Term
+		var curr Currency
 
 		err = rows.Scan(&cur.ID, &cur.DeliveryTime, &cur.Returns,
-			&cur.DeliveryCost, &cur.Name, &cur.CurID)
+			&cur.DeliveryCost, &cur.Name, &curr.ID, &curr.RusName,
+			&curr.EngName, &curr.LatISO, &curr.DigISO, &curr.Symbol)
 
 		if err != nil {
 			return result, err
 		}
+
+		cur.Currency = curr
 
 		result.SaleTerms = append(result.SaleTerms, cur)
 	}
@@ -92,6 +105,7 @@ func PostgreSQLTermsSelect(page int, limit int, dbc *sql.DB) (TermsResponse, err
 func PostgreSQLSingleTermSelect(ID int, dbc *sql.DB) (Term, error) {
 
 	var result Term
+	result.Currency = Currency{}
 
 	sqlreq := `SELECT 
 				COUNT(*)
@@ -111,32 +125,46 @@ func PostgreSQLSingleTermSelect(ID int, dbc *sql.DB) (Term, error) {
 	}
 
 	if countRows <= 0 {
-		return result, ErrCurrencyNotFound
+		return result, ErrTermNotFound
 	}
 
 	sqlreq = `SELECT 
-					id, 
-					delivery_time, 
-					returns, 
-					delivery_cost, 
-					name,
-					currency_id
+					terms.id, 
+					terms.delivery_time, 
+					terms.returns, 
+					terms.delivery_cost, 
+					terms.name,
+					terms.currency_id,
+					currencies.rus_name,
+					currencies.eng_name,
+					currencies.iso_lat_3,
+					currencies.iso_dig,
+					currencies.symbol
 				FROM 
 					"references".terms
+				LEFT JOIN
+					"references".currencies
+				ON 
+					terms.currency_id=currencies.id					
 				WHERE 
 					id=$1
 				ORDER BY
-					id
+					terms.id
 				LIMIT 1;`
 
 	row = dbc.QueryRow(sqlreq, ID)
 
+	var curr Currency
+
 	err = row.Scan(&result.ID, &result.DeliveryTime, &result.Returns,
-		&result.DeliveryCost, &result.Name, &result.CurID)
+		&result.DeliveryCost, &result.Name, &curr.ID, &curr.RusName,
+		&curr.EngName, &curr.LatISO, &curr.DigISO, &curr.Symbol)
 
 	if err != nil {
 		return result, err
 	}
+
+	result.Currency = curr
 
 	return result, nil
 }
@@ -196,7 +224,7 @@ func PostgreSQLTermsInsert(t Term, dbc *sql.DB) (Term, error) {
 						"references".terms(delivery_time, returns, delivery_cost, name, currency_id)
 						VALUES ($1, $2, $3, $4, $5) RETURNING id;`
 
-	row := dbc.QueryRow(sqlreq, t.DeliveryTime, t.Returns, t.DeliveryCost, t.Name, t.CurID)
+	row := dbc.QueryRow(sqlreq, t.DeliveryTime, t.Returns, t.DeliveryCost, t.Name, t.Currency.ID)
 
 	var curid int
 	err := row.Scan(&curid)
@@ -223,7 +251,7 @@ func PostgreSQLTermsUpdate(t Term, dbc *sql.DB) (Term, error) {
 				SET (delivery_time, returns, delivery_cost, name, currency_id) = ($1, $2, $3, $4, $5)
 				WHERE id=$6;`
 
-	_, err := dbc.Exec(sqlreq, t.DeliveryTime, t.Returns, t.DeliveryCost, t.Name, t.CurID, t.ID)
+	_, err := dbc.Exec(sqlreq, t.DeliveryTime, t.Returns, t.DeliveryCost, t.Name, t.Currency.ID, t.ID)
 
 	if err != nil {
 		return t, PostgreSQLRollbackIfError(err, false, dbc)

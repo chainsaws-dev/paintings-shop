@@ -82,7 +82,7 @@ type Term struct {
 	DeliveryTime string
 	DeliveryCost string
 	Returns      string
-	CurID        int
+	Currency     Currency
 }
 
 // Terms тип для хранения списка условий

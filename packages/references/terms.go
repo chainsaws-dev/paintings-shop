@@ -87,7 +87,7 @@ func Terms(w http.ResponseWriter, req *http.Request) {
 					term, err = databases.PostgreSQLSingleTermSelect(ID, dbc)
 
 					if err != nil {
-						if errors.Is(err, databases.ErrContryNotFound) {
+						if errors.Is(err, databases.ErrTermNotFound) {
 							shared.HandleOtherError(w, err.Error(), err, http.StatusBadRequest)
 							return
 						}
@@ -152,6 +152,7 @@ func Terms(w http.ResponseWriter, req *http.Request) {
 
 			// Читаем тело запроса в структуру
 			var term databases.Term
+			term.Currency = databases.Currency{}
 
 			err = json.NewDecoder(req.Body).Decode(&term)
 
