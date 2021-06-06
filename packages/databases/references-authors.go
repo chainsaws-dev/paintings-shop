@@ -205,7 +205,7 @@ func PostgreSQLSingleAuthorSelect(ID int, dbc *sql.DB) (Author, error) {
 						secret.users 
 				ON authors.user_id = users.id
 			WHERE 
-				id=$1				
+				authors.id=$1				
 			ORDER BY
 				authors.id
 			LIMIT 1;`
@@ -289,7 +289,7 @@ func PostgreSQLAuthorsInsert(au Author, dbc *sql.DB) (Author, error) {
 						VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id;`
 
 	row := dbc.QueryRow(sqlreq, au.FirstName, au.MiddleName, au.LastName, au.Bio,
-		au.Photo.FileID, au.OriginCountry.ID, au.OriginCity, au.EngName, au.User.GUID)
+		au.Photo.ID, au.OriginCountry.ID, au.OriginCity, au.EngName, au.User.GUID)
 
 	var curid int
 	err := row.Scan(&curid)
