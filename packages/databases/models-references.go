@@ -4,9 +4,9 @@ package databases
 // File - тип для хранения информации о файле в базе данных
 type File struct {
 	ID        int
-	Filename  string
-	Filesize  int
-	Filetype  string
+	FileName  string
+	FileSize  int
+	FileType  string
 	FileID    string
 	PreviewID string
 }
@@ -84,14 +84,41 @@ type Term struct {
 }
 
 // Terms тип для хранения списка условий
-type Terms []Term
+type TermsList []Term
 
 // TermsResponse - тип для возврата с ответом,
 // описывающий список условий продажи, доставки и возврата
 // с данными для постраничной разбивки
 type TermsResponse struct {
-	SaleTerms Terms
+	SaleTerms TermsList
 	Total     int
 	Offset    int
 	Limit     int
+}
+
+// Author - тип для хранения информации об авторе картины
+type Author struct {
+	ID            int
+	FirstName     string
+	MiddleName    string
+	LastName      string
+	EngName       string
+	Bio           string
+	OriginCity    string
+	Photo         File
+	OriginCountry Country
+	User          User
+}
+
+// Authors - тип для хранения списка авторов картин
+type AuthorsList []Author
+
+// AuthorsResponse - тип для возврата с ответом,
+// описывающий список авторов картин
+// с данными для постраничной разбивки
+type AuthorsResponse struct {
+	ArtAuthors AuthorsList
+	Total      int
+	Offset     int
+	Limit      int
 }

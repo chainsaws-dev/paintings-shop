@@ -55,7 +55,7 @@ func PostgreSQLFileInsert(f File, dbc *sql.DB) (int, error) {
 		  VALUES 
 			($1, $2, $3, $4, $5) RETURNING id;`
 
-	row := dbc.QueryRow(sqlreq, f.Filename, f.Filesize, f.Filetype, f.FileID, f.PreviewID)
+	row := dbc.QueryRow(sqlreq, f.FileName, f.FileSize, f.FileType, f.FileID, f.PreviewID)
 
 	var curid int
 	err := row.Scan(&curid)
@@ -105,7 +105,7 @@ func PostgreSQLFileUpdate(f File, dbc *sql.DB) (int, error) {
 				WHERE
 					file_id=$4;`
 
-	_, err = dbc.Exec(sqlreq, f.Filename, f.Filesize, f.Filetype, f.FileID, f.PreviewID)
+	_, err = dbc.Exec(sqlreq, f.FileName, f.FileSize, f.FileType, f.FileID, f.PreviewID)
 
 	if err != nil {
 		return f.ID, PostgreSQLRollbackIfError(err, false, dbc)
@@ -258,7 +258,7 @@ func PostgreSQLFilesSelect(page int, limit int, dbc *sql.DB) (FilesResponse, err
 
 	for rows.Next() {
 		var cur File
-		err = rows.Scan(&cur.ID, &cur.Filename, &cur.Filesize, &cur.Filetype, &cur.FileID, &cur.PreviewID)
+		err = rows.Scan(&cur.ID, &cur.FileName, &cur.FileSize, &cur.FileType, &cur.FileID, &cur.PreviewID)
 		if err != nil {
 			return result, err
 		}

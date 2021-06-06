@@ -91,9 +91,9 @@ func fileUpload(w http.ResponseWriter, req *http.Request, role string) (database
 
 		log.Printf("Файл получен и сохранён под именем %s", filename)
 
-		NewFile.Filename = fh.Filename
-		NewFile.Filesize = int(fh.Size)
-		NewFile.Filetype = ext
+		NewFile.FileName = fh.Filename
+		NewFile.FileSize = int(fh.Size)
+		NewFile.FileType = ext
 		NewFile.FileID = filename
 
 		// Создаем превьюшку

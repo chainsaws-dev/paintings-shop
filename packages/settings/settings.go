@@ -102,9 +102,9 @@ func (SQLsrv *SQLServer) CreateDatabase(donech chan bool, CreateRoles bool) {
 		}
 
 		placeholder := databases.File{
-			Filename: "placeholder.jpg",
-			Filesize: 0,
-			Filetype: "jpg",
+			FileName: "placeholder.jpg",
+			FileSize: 0,
+			FileType: "jpg",
 			FileID:   "",
 		}
 		databases.PostgreSQLFileChange(placeholder, dbc)
@@ -267,6 +267,8 @@ func formRightsArray(rule TRule) []string {
 // CheckRoleForRead - проверяет роль для разрешения доступа к разделу системы
 func (ss WServerSettings) CheckRoleForRead(RoleName string, AppPart string) bool {
 	switch {
+	case AppPart == "Authors":
+		return ss.CheckExistingRole(RoleName)
 	case AppPart == "Terms":
 		return ss.CheckExistingRole(RoleName)
 	case AppPart == "Currencies":
@@ -301,6 +303,8 @@ func (ss WServerSettings) CheckRoleForRead(RoleName string, AppPart string) bool
 // CheckRoleForChange - проверяет роль для разрешения изменений в разделе системы
 func (ss WServerSettings) CheckRoleForChange(RoleName string, AppPart string) bool {
 	switch {
+	case AppPart == "Authors":
+		return checkAdmin(RoleName)
 	case AppPart == "Terms":
 		return checkAdmin(RoleName)
 	case AppPart == "Currencies":
@@ -329,6 +333,8 @@ func (ss WServerSettings) CheckRoleForChange(RoleName string, AppPart string) bo
 // CheckRoleForDelete - проверяет роль для разрешения доступа к удалению элементов раздела системы
 func (ss WServerSettings) CheckRoleForDelete(RoleName string, AppPart string) bool {
 	switch {
+	case AppPart == "Authors":
+		return checkAdmin(RoleName)
 	case AppPart == "Terms":
 		return checkAdmin(RoleName)
 	case AppPart == "Currencies":

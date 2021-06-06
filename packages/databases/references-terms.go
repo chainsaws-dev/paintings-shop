@@ -20,7 +20,7 @@ import (
 func PostgreSQLTermsSelect(page int, limit int, dbc *sql.DB) (TermsResponse, error) {
 
 	var result TermsResponse
-	result.SaleTerms = Terms{}
+	result.SaleTerms = TermsList{}
 
 	sqlreq := `SELECT 
 				COUNT(*)
