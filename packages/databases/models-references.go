@@ -18,8 +18,6 @@ type FilesList []File
 // описывающий список файлов для постраничной разбивки
 type FilesResponse struct {
 	Files  FilesList
-	Edit   bool
-	Delete bool
 	Total  int
 	Offset int
 	Limit  int
