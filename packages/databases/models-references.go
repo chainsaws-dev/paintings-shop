@@ -73,3 +73,27 @@ type CurrenciesResponse struct {
 	Offset     int
 	Limit      int
 }
+
+// Term - тип для хранения информации
+// об условиях продажи, доставки и возврата
+type Term struct {
+	ID           int
+	Name         string
+	DeliveryTime string
+	DeliveryCost string
+	Returns      string
+	CurID        int
+}
+
+// Terms тип для хранения списка условий
+type Terms []Term
+
+// TermsResponse - тип для возврата с ответом,
+// описывающий список условий продажи, доставки и возврата
+// с данными для постраничной разбивки
+type TermsResponse struct {
+	SaleTerms Terms
+	Total     int
+	Offset    int
+	Limit     int
+}
