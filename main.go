@@ -94,6 +94,7 @@ func main() {
 	http.HandleFunc("/api/References/Currencies", references.Currencies)
 	http.HandleFunc("/api/References/Terms", references.Terms)
 	http.HandleFunc("/api/References/Authors", references.Authors)
+	http.HandleFunc("/api/References/ArtworkTypes", references.ArtworkTypes)
 
 	if initpar.CleanTokens {
 		go signinupout.RegularConfirmTokensCleanup()

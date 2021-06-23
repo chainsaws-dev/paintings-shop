@@ -122,3 +122,23 @@ type AuthorsResponse struct {
 	Offset     int
 	Limit      int
 }
+
+// ArtworkType - тип для хранения информации о типе картины
+type ArtworkType struct {
+	ID      int
+	Name    string
+	EngName string
+}
+
+// ArtworkTypesList - тип для хранения списка типов картин
+type ArtworkTypesList []ArtworkType
+
+// ArtworkTypesResponse - тип для возврата с ответом,
+// описывающий список типов картин
+// с данными для постраничной разбивки
+type ArtworkTypesResponse struct {
+	ArtTypes ArtworkTypesList
+	Total    int
+	Offset   int
+	Limit    int
+}

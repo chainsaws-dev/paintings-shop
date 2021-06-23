@@ -267,6 +267,8 @@ func formRightsArray(rule TRule) []string {
 // CheckRoleForRead - проверяет роль для разрешения доступа к разделу системы
 func (ss WServerSettings) CheckRoleForRead(RoleName string, AppPart string) bool {
 	switch {
+	case AppPart == "ArtworkTypes":
+		return ss.CheckExistingRole(RoleName)
 	case AppPart == "Authors":
 		return ss.CheckExistingRole(RoleName)
 	case AppPart == "Terms":
@@ -303,6 +305,8 @@ func (ss WServerSettings) CheckRoleForRead(RoleName string, AppPart string) bool
 // CheckRoleForChange - проверяет роль для разрешения изменений в разделе системы
 func (ss WServerSettings) CheckRoleForChange(RoleName string, AppPart string) bool {
 	switch {
+	case AppPart == "ArtworkTypes":
+		return checkAdmin(RoleName)
 	case AppPart == "Authors":
 		return checkAdmin(RoleName)
 	case AppPart == "Terms":
@@ -333,6 +337,8 @@ func (ss WServerSettings) CheckRoleForChange(RoleName string, AppPart string) bo
 // CheckRoleForDelete - проверяет роль для разрешения доступа к удалению элементов раздела системы
 func (ss WServerSettings) CheckRoleForDelete(RoleName string, AppPart string) bool {
 	switch {
+	case AppPart == "ArtworkTypes":
+		return checkAdmin(RoleName)
 	case AppPart == "Authors":
 		return checkAdmin(RoleName)
 	case AppPart == "Terms":
