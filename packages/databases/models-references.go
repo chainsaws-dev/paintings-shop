@@ -142,3 +142,28 @@ type ArtworkTypesResponse struct {
 	Offset   int
 	Limit    int
 }
+
+// Address - тип для хранения
+// информации о адресе
+type Address struct {
+	ID       int
+	Index    string
+	Name     string
+	City     string
+	District string
+	Street   string
+	Country  Country
+}
+
+// AdressesList - тип для хранения списка адресов
+type AddressesList []Address
+
+// AdressesResponse - тип для возврата с ответом,
+// описывающий список адресов
+// с данными для постраничной разбивки
+type AddressesResponse struct {
+	Addresses AddressesList
+	Total     int
+	Offset    int
+	Limit     int
+}

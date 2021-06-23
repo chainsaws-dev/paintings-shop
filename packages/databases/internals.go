@@ -30,6 +30,7 @@ var (
 	ErrTablesAlreadyExist    = errors.New("база данных содержит таблицы")
 	ErrContryNotFound        = errors.New("в таблице стран не найдено указанного ID")
 	ErrCurrencyNotFound      = errors.New("в таблице валют не найдено указанного ID")
+	ErrAddressNotFound       = errors.New("в таблице адресов не найдено указанного ID")
 	ErrArtTypeNotFound       = errors.New("в таблице типов картин не найдено указанного ID")
 	ErrTermNotFound          = errors.New("в таблице условий не найдено указанного ID")
 	ErrAuthorNotFound        = errors.New("в таблице авторов не найдено указанного ID")

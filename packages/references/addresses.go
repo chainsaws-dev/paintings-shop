@@ -12,7 +12,7 @@ import (
 	"strconv"
 )
 
-// ArtworkTypes - обработчик для работы со справочником типов картин
+// Addresses - обработчик для работы со справочником адреса
 //
 // Аутентификация
 //
@@ -46,7 +46,7 @@ import (
 // DELETE
 //
 // 	ожидается заголовок ItemID с индексом элемента, который нужно удалить
-func ArtworkTypes(w http.ResponseWriter, req *http.Request) {
+func Addresses(w http.ResponseWriter, req *http.Request) {
 
 	role, auth := signinupout.AuthGeneral(w, req)
 
@@ -59,7 +59,7 @@ func ArtworkTypes(w http.ResponseWriter, req *http.Request) {
 	switch {
 	case req.Method == http.MethodGet:
 
-		if setup.ServerSettings.CheckRoleForRead(role, "ArtworkTypes") {
+		if setup.ServerSettings.CheckRoleForRead(role, "Addresses") {
 
 			PageStr := req.Header.Get("Page")
 			LimitStr := req.Header.Get("Limit")
@@ -82,9 +82,9 @@ func ArtworkTypes(w http.ResponseWriter, req *http.Request) {
 						return
 					}
 
-					var ArtType databases.ArtworkType
+					var Addr databases.Address
 
-					ArtType, err = databases.PostgreSQLSingleArtworkTypeSelect(ID, dbc)
+					Addr, err = databases.PostgreSQLSingleAddressSelect(ID, dbc)
 
 					if err != nil {
 						if errors.Is(err, databases.ErrArtTypeNotFound) {
@@ -97,7 +97,7 @@ func ArtworkTypes(w http.ResponseWriter, req *http.Request) {
 						}
 					}
 
-					shared.WriteObjectToJSON(false, w, ArtType)
+					shared.WriteObjectToJSON(false, w, Addr)
 
 				} else {
 					shared.HandleOtherError(w, shared.ErrHeadersNotFilled.Error(), shared.ErrHeadersNotFilled, http.StatusBadRequest)
@@ -118,9 +118,9 @@ func ArtworkTypes(w http.ResponseWriter, req *http.Request) {
 					return
 				}
 
-				var ArtTypes databases.ArtworkTypesResponse
+				var Addr databases.AddressesResponse
 
-				ArtTypes, err = databases.PostgreSQLArtworkTypesSelect(Page, Limit, dbc)
+				Addr, err = databases.PostgreSQLAddressesSelect(Page, Limit, dbc)
 
 				if err != nil {
 					if errors.Is(err, databases.ErrLimitOffsetInvalid) {
@@ -128,7 +128,7 @@ func ArtworkTypes(w http.ResponseWriter, req *http.Request) {
 						return
 					}
 
-					if errors.Is(err, databases.ErrArtTypeNotFound) {
+					if errors.Is(err, databases.ErrAddressNotFound) {
 						shared.HandleOtherError(w, err.Error(), err, http.StatusBadRequest)
 						return
 					}
@@ -138,7 +138,7 @@ func ArtworkTypes(w http.ResponseWriter, req *http.Request) {
 					}
 				}
 
-				shared.WriteObjectToJSON(false, w, ArtTypes)
+				shared.WriteObjectToJSON(false, w, Addr)
 
 			}
 
@@ -148,12 +148,13 @@ func ArtworkTypes(w http.ResponseWriter, req *http.Request) {
 
 	case req.Method == http.MethodPost:
 
-		if setup.ServerSettings.CheckRoleForChange(role, "ArtworkTypes") {
+		if setup.ServerSettings.CheckRoleForChange(role, "Addresses") {
 
 			// Читаем тело запроса в структуру
-			var ArtType databases.ArtworkType
+			var Addr databases.Address
+			Addr.Country = databases.Country{}
 
-			err = json.NewDecoder(req.Body).Decode(&ArtType)
+			err = json.NewDecoder(req.Body).Decode(&Addr)
 
 			if shared.HandleOtherError(w, "Invalid JSON in request body", err, http.StatusBadRequest) {
 				return
@@ -166,13 +167,13 @@ func ArtworkTypes(w http.ResponseWriter, req *http.Request) {
 			}
 			defer dbc.Close()
 
-			ArtType, err = databases.PostgreSQLArtworkTypeChange(ArtType, dbc)
+			Addr, err = databases.PostgreSQLAddressChange(Addr, dbc)
 
 			if shared.HandleInternalServerError(w, err) {
 				return
 			}
 
-			shared.WriteObjectToJSON(false, w, ArtType)
+			shared.WriteObjectToJSON(false, w, Addr)
 
 		} else {
 			shared.HandleOtherError(w, shared.ErrForbidden.Error(), shared.ErrForbidden, http.StatusForbidden)
@@ -180,7 +181,7 @@ func ArtworkTypes(w http.ResponseWriter, req *http.Request) {
 
 	case req.Method == http.MethodDelete:
 
-		if setup.ServerSettings.CheckRoleForDelete(role, "ArtworkTypes") {
+		if setup.ServerSettings.CheckRoleForDelete(role, "Addresses") {
 
 			ItemID := req.Header.Get("ItemID")
 
@@ -199,7 +200,7 @@ func ArtworkTypes(w http.ResponseWriter, req *http.Request) {
 				}
 				defer dbc.Close()
 
-				err = databases.PostgreSQLArtworkTypesDelete(ID, dbc)
+				err = databases.PostgreSQLAddressesDelete(ID, dbc)
 
 				if err != nil {
 					if errors.Is(databases.ErrNoDeleteIfLinksExist, err) {
@@ -212,7 +213,7 @@ func ArtworkTypes(w http.ResponseWriter, req *http.Request) {
 					}
 				}
 
-				shared.HandleSuccessMessage(w, "Тип картины успешно удалён")
+				shared.HandleSuccessMessage(w, "Адрес успешно удалён")
 
 			} else {
 				shared.HandleOtherError(w, shared.ErrHeadersNotFilled.Error(), shared.ErrHeadersNotFilled, http.StatusBadRequest)
