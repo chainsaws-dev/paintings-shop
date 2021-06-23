@@ -87,7 +87,7 @@ func Addresses(w http.ResponseWriter, req *http.Request) {
 					Addr, err = databases.PostgreSQLSingleAddressSelect(ID, dbc)
 
 					if err != nil {
-						if errors.Is(err, databases.ErrArtTypeNotFound) {
+						if errors.Is(err, databases.ErrAddressNotFound) {
 							shared.HandleOtherError(w, err.Error(), err, http.StatusBadRequest)
 							return
 						}
