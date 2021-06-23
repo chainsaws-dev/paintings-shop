@@ -62,7 +62,7 @@ func PostgreSQLAddressesSelect(page int, limit int, dbc *sql.DB) (AddressesRespo
 								"references".countries
 							ON addresses.country_id=countries.id
 							ORDER BY
-								id
+								addresses.id
 							LIMIT %v OFFSET %v;`, limit, offset)
 	} else {
 		return result, ErrLimitOffsetInvalid
