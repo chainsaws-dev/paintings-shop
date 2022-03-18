@@ -14,8 +14,7 @@ require (
 
 require (
 	github.com/boombuler/barcode v1.0.1 // indirect
-	github.com/kr/pretty v0.2.1 // indirect
-	github.com/kr/text v0.1.0 // indirect
+	github.com/kr/pretty v0.3.0 // indirect
 	github.com/nwaples/rardecode v1.1.3 // indirect
 	golang.org/x/sys v0.0.0-20220318055525-2edf467146b5 // indirect
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
