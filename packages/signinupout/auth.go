@@ -6,11 +6,11 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"paintings-shop/internal/databases"
+	"paintings-shop/internal/setup"
 	"paintings-shop/packages/admin"
 	"paintings-shop/packages/authentication"
-	"paintings-shop/packages/databases"
 	"paintings-shop/packages/messages"
-	"paintings-shop/packages/setup"
 	"paintings-shop/packages/shared"
 	"regexp"
 	"strconv"
@@ -454,7 +454,7 @@ func HandleUsers(w http.ResponseWriter, req *http.Request) {
 					}
 				}
 
-				shared.WriteObjectToJSON(false, w, usersresp)
+				shared.WriteObjectToJSON(w, usersresp)
 
 			} else {
 				shared.HandleOtherError(w, ErrHeadersNotFilled.Error(), ErrHeadersNotFilled, http.StatusBadRequest)
@@ -549,7 +549,7 @@ func HandleUsers(w http.ResponseWriter, req *http.Request) {
 			}
 
 			// Пишем в тело ответа
-			shared.WriteObjectToJSON(false, w, User)
+			shared.WriteObjectToJSON(w, User)
 
 		} else {
 			shared.HandleOtherError(w, ErrForbidden.Error(), ErrForbidden, http.StatusForbidden)
@@ -683,7 +683,7 @@ func HandleSessions(w http.ResponseWriter, req *http.Request) {
 					}
 				}
 
-				shared.WriteObjectToJSON(false, w, sessionsresp)
+				shared.WriteObjectToJSON(w, sessionsresp)
 
 			} else {
 				shared.HandleOtherError(w, ErrHeadersNotFilled.Error(), ErrHeadersNotFilled, http.StatusBadRequest)
@@ -807,7 +807,7 @@ func CurrentUser(w http.ResponseWriter, req *http.Request) {
 				return
 			}
 
-			shared.WriteObjectToJSON(false, w, FoundUser)
+			shared.WriteObjectToJSON(w, FoundUser)
 		} else {
 			shared.HandleOtherError(w, ErrForbidden.Error(), ErrForbidden, http.StatusForbidden)
 		}
@@ -917,7 +917,7 @@ func CurrentUser(w http.ResponseWriter, req *http.Request) {
 			}
 
 			// Пишем в тело ответа
-			shared.WriteObjectToJSON(false, w, User)
+			shared.WriteObjectToJSON(w, User)
 
 		} else {
 			shared.HandleOtherError(w, ErrForbidden.Error(), ErrForbidden, http.StatusForbidden)

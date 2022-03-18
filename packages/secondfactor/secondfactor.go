@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"paintings-shop/packages/databases"
-	"paintings-shop/packages/setup"
+	"paintings-shop/internal/databases"
+	"paintings-shop/internal/setup"
 	"paintings-shop/packages/shared"
 	"paintings-shop/packages/signinupout"
 )
@@ -104,7 +104,7 @@ func SecondFactor(w http.ResponseWriter, req *http.Request) {
 				result.UserID = Totp.UserID
 			}
 
-			shared.WriteObjectToJSON(false, w, result)
+			shared.WriteObjectToJSON(w, result)
 
 		} else {
 			shared.HandleOtherError(w, signinupout.ErrForbidden.Error(), signinupout.ErrForbidden, http.StatusForbidden)

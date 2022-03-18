@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"image/png"
+	"paintings-shop/internal/databases"
 	"paintings-shop/packages/aesencryptor"
-	"paintings-shop/packages/databases"
 
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"

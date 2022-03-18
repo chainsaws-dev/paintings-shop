@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"paintings-shop/internal/databases"
+	"paintings-shop/internal/settings"
 	"paintings-shop/packages/authentication"
-	"paintings-shop/packages/databases"
-	"paintings-shop/packages/settings"
 	"text/template"
 
 	send "github.com/go-mail/mail"

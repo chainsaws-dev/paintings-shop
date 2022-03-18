@@ -5,14 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"paintings-shop/packages/databases"
-	"paintings-shop/packages/setup"
+	"paintings-shop/internal/databases"
+	"paintings-shop/internal/setup"
 	"paintings-shop/packages/shared"
 	"paintings-shop/packages/signinupout"
 	"strconv"
 )
 
-// Countries - обработчик для работы со справочником валюты
+// ArtworkTypes - обработчик для работы со справочником типов картин
 //
 // Аутентификация
 //
@@ -46,7 +46,7 @@ import (
 // DELETE
 //
 // 	ожидается заголовок ItemID с индексом элемента, который нужно удалить
-func Currencies(w http.ResponseWriter, req *http.Request) {
+func ArtworkTypes(w http.ResponseWriter, req *http.Request) {
 
 	role, auth := signinupout.AuthGeneral(w, req)
 
@@ -59,7 +59,7 @@ func Currencies(w http.ResponseWriter, req *http.Request) {
 	switch {
 	case req.Method == http.MethodGet:
 
-		if setup.ServerSettings.CheckRoleForRead(role, "Currencies") {
+		if setup.ServerSettings.CheckRoleForRead(role, "ArtworkTypes") {
 
 			PageStr := req.Header.Get("Page")
 			LimitStr := req.Header.Get("Limit")
@@ -82,12 +82,12 @@ func Currencies(w http.ResponseWriter, req *http.Request) {
 						return
 					}
 
-					var Currency databases.Currency
+					var ArtType databases.ArtworkType
 
-					Currency, err = databases.PostgreSQLSingleCurrencySelect(ID, dbc)
+					ArtType, err = databases.PostgreSQLSingleArtworkTypeSelect(ID, dbc)
 
 					if err != nil {
-						if errors.Is(err, databases.ErrContryNotFound) {
+						if errors.Is(err, databases.ErrArtTypeNotFound) {
 							shared.HandleOtherError(w, err.Error(), err, http.StatusBadRequest)
 							return
 						}
@@ -97,7 +97,7 @@ func Currencies(w http.ResponseWriter, req *http.Request) {
 						}
 					}
 
-					shared.WriteObjectToJSON(false, w, Currency)
+					shared.WriteObjectToJSON(w, ArtType)
 
 				} else {
 					shared.HandleOtherError(w, shared.ErrHeadersNotFilled.Error(), shared.ErrHeadersNotFilled, http.StatusBadRequest)
@@ -118,9 +118,9 @@ func Currencies(w http.ResponseWriter, req *http.Request) {
 					return
 				}
 
-				var Currencies databases.CurrenciesResponse
+				var ArtTypes databases.ArtworkTypesResponse
 
-				Currencies, err = databases.PostgreSQLCurrenciesSelect(Page, Limit, dbc)
+				ArtTypes, err = databases.PostgreSQLArtworkTypesSelect(Page, Limit, dbc)
 
 				if err != nil {
 					if errors.Is(err, databases.ErrLimitOffsetInvalid) {
@@ -128,7 +128,7 @@ func Currencies(w http.ResponseWriter, req *http.Request) {
 						return
 					}
 
-					if errors.Is(err, databases.ErrContryNotFound) {
+					if errors.Is(err, databases.ErrArtTypeNotFound) {
 						shared.HandleOtherError(w, err.Error(), err, http.StatusBadRequest)
 						return
 					}
@@ -138,7 +138,7 @@ func Currencies(w http.ResponseWriter, req *http.Request) {
 					}
 				}
 
-				shared.WriteObjectToJSON(false, w, Currencies)
+				shared.WriteObjectToJSON(w, ArtTypes)
 
 			}
 
@@ -148,12 +148,12 @@ func Currencies(w http.ResponseWriter, req *http.Request) {
 
 	case req.Method == http.MethodPost:
 
-		if setup.ServerSettings.CheckRoleForChange(role, "Currencies") {
+		if setup.ServerSettings.CheckRoleForChange(role, "ArtworkTypes") {
 
 			// Читаем тело запроса в структуру
-			var CurInfo databases.Currency
+			var ArtType databases.ArtworkType
 
-			err = json.NewDecoder(req.Body).Decode(&CurInfo)
+			err = json.NewDecoder(req.Body).Decode(&ArtType)
 
 			if shared.HandleOtherError(w, "Invalid JSON in request body", err, http.StatusBadRequest) {
 				return
@@ -166,13 +166,13 @@ func Currencies(w http.ResponseWriter, req *http.Request) {
 			}
 			defer dbc.Close()
 
-			CurInfo, err = databases.PostgreSQLCurrenciesChange(CurInfo, dbc)
+			ArtType, err = databases.PostgreSQLArtworkTypeChange(ArtType, dbc)
 
 			if shared.HandleInternalServerError(w, err) {
 				return
 			}
 
-			shared.WriteObjectToJSON(false, w, CurInfo)
+			shared.WriteObjectToJSON(w, ArtType)
 
 		} else {
 			shared.HandleOtherError(w, shared.ErrForbidden.Error(), shared.ErrForbidden, http.StatusForbidden)
@@ -180,7 +180,7 @@ func Currencies(w http.ResponseWriter, req *http.Request) {
 
 	case req.Method == http.MethodDelete:
 
-		if setup.ServerSettings.CheckRoleForDelete(role, "Currencies") {
+		if setup.ServerSettings.CheckRoleForDelete(role, "ArtworkTypes") {
 
 			ItemID := req.Header.Get("ItemID")
 
@@ -199,7 +199,7 @@ func Currencies(w http.ResponseWriter, req *http.Request) {
 				}
 				defer dbc.Close()
 
-				err = databases.PostgreSQLCurrenciesDelete(ID, dbc)
+				err = databases.PostgreSQLArtworkTypesDelete(ID, dbc)
 
 				if err != nil {
 					if errors.Is(databases.ErrNoDeleteIfLinksExist, err) {
@@ -212,7 +212,7 @@ func Currencies(w http.ResponseWriter, req *http.Request) {
 					}
 				}
 
-				shared.HandleSuccessMessage(w, "Валюта успешно удалена")
+				shared.HandleSuccessMessage(w, "Тип картины успешно удалён")
 
 			} else {
 				shared.HandleOtherError(w, shared.ErrHeadersNotFilled.Error(), shared.ErrHeadersNotFilled, http.StatusBadRequest)

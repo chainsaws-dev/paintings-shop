@@ -5,14 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"paintings-shop/packages/databases"
-	"paintings-shop/packages/setup"
+	"paintings-shop/internal/databases"
+	"paintings-shop/internal/setup"
 	"paintings-shop/packages/shared"
 	"paintings-shop/packages/signinupout"
 	"strconv"
 )
 
-// Authors - обработчик для работы со справочником авторы
+// Countries - обработчик для работы со справочником валюты
 //
 // Аутентификация
 //
@@ -41,12 +41,12 @@ import (
 // POST
 //
 // 	тело запроса должно быть заполнено JSON объектом
-// 	идентичным по структуре Author (см. файл models.go в пакете databases)
+// 	идентичным по структуре Currency (см. файл models.go в пакете databases)
 //
 // DELETE
 //
 // 	ожидается заголовок ItemID с индексом элемента, который нужно удалить
-func Authors(w http.ResponseWriter, req *http.Request) {
+func Currencies(w http.ResponseWriter, req *http.Request) {
 
 	role, auth := signinupout.AuthGeneral(w, req)
 
@@ -59,7 +59,7 @@ func Authors(w http.ResponseWriter, req *http.Request) {
 	switch {
 	case req.Method == http.MethodGet:
 
-		if setup.ServerSettings.CheckRoleForRead(role, "Authors") {
+		if setup.ServerSettings.CheckRoleForRead(role, "Currencies") {
 
 			PageStr := req.Header.Get("Page")
 			LimitStr := req.Header.Get("Limit")
@@ -82,12 +82,12 @@ func Authors(w http.ResponseWriter, req *http.Request) {
 						return
 					}
 
-					var au databases.Author
+					var Currency databases.Currency
 
-					au, err = databases.PostgreSQLSingleAuthorSelect(ID, dbc)
+					Currency, err = databases.PostgreSQLSingleCurrencySelect(ID, dbc)
 
 					if err != nil {
-						if errors.Is(err, databases.ErrAuthorNotFound) {
+						if errors.Is(err, databases.ErrContryNotFound) {
 							shared.HandleOtherError(w, err.Error(), err, http.StatusBadRequest)
 							return
 						}
@@ -97,7 +97,7 @@ func Authors(w http.ResponseWriter, req *http.Request) {
 						}
 					}
 
-					shared.WriteObjectToJSON(false, w, au)
+					shared.WriteObjectToJSON(w, Currency)
 
 				} else {
 					shared.HandleOtherError(w, shared.ErrHeadersNotFilled.Error(), shared.ErrHeadersNotFilled, http.StatusBadRequest)
@@ -118,9 +118,9 @@ func Authors(w http.ResponseWriter, req *http.Request) {
 					return
 				}
 
-				var au databases.AuthorsResponse
+				var Currencies databases.CurrenciesResponse
 
-				au, err = databases.PostgreSQLAuthorsSelect(Page, Limit, dbc)
+				Currencies, err = databases.PostgreSQLCurrenciesSelect(Page, Limit, dbc)
 
 				if err != nil {
 					if errors.Is(err, databases.ErrLimitOffsetInvalid) {
@@ -128,7 +128,7 @@ func Authors(w http.ResponseWriter, req *http.Request) {
 						return
 					}
 
-					if errors.Is(err, databases.ErrAuthorNotFound) {
+					if errors.Is(err, databases.ErrContryNotFound) {
 						shared.HandleOtherError(w, err.Error(), err, http.StatusBadRequest)
 						return
 					}
@@ -138,7 +138,7 @@ func Authors(w http.ResponseWriter, req *http.Request) {
 					}
 				}
 
-				shared.WriteObjectToJSON(false, w, au)
+				shared.WriteObjectToJSON(w, Currencies)
 
 			}
 
@@ -148,12 +148,12 @@ func Authors(w http.ResponseWriter, req *http.Request) {
 
 	case req.Method == http.MethodPost:
 
-		if setup.ServerSettings.CheckRoleForChange(role, "Authors") {
+		if setup.ServerSettings.CheckRoleForChange(role, "Currencies") {
 
 			// Читаем тело запроса в структуру
-			var au databases.Author
+			var CurInfo databases.Currency
 
-			err = json.NewDecoder(req.Body).Decode(&au)
+			err = json.NewDecoder(req.Body).Decode(&CurInfo)
 
 			if shared.HandleOtherError(w, "Invalid JSON in request body", err, http.StatusBadRequest) {
 				return
@@ -166,13 +166,13 @@ func Authors(w http.ResponseWriter, req *http.Request) {
 			}
 			defer dbc.Close()
 
-			au, err = databases.PostgreSQLAuthorsChange(au, dbc)
+			CurInfo, err = databases.PostgreSQLCurrenciesChange(CurInfo, dbc)
 
 			if shared.HandleInternalServerError(w, err) {
 				return
 			}
 
-			shared.WriteObjectToJSON(false, w, au)
+			shared.WriteObjectToJSON(w, CurInfo)
 
 		} else {
 			shared.HandleOtherError(w, shared.ErrForbidden.Error(), shared.ErrForbidden, http.StatusForbidden)
@@ -180,7 +180,7 @@ func Authors(w http.ResponseWriter, req *http.Request) {
 
 	case req.Method == http.MethodDelete:
 
-		if setup.ServerSettings.CheckRoleForDelete(role, "Authors") {
+		if setup.ServerSettings.CheckRoleForDelete(role, "Currencies") {
 
 			ItemID := req.Header.Get("ItemID")
 
@@ -199,7 +199,7 @@ func Authors(w http.ResponseWriter, req *http.Request) {
 				}
 				defer dbc.Close()
 
-				err = databases.PostgreSQLAuthorsDelete(ID, dbc)
+				err = databases.PostgreSQLCurrenciesDelete(ID, dbc)
 
 				if err != nil {
 					if errors.Is(databases.ErrNoDeleteIfLinksExist, err) {
@@ -212,7 +212,7 @@ func Authors(w http.ResponseWriter, req *http.Request) {
 					}
 				}
 
-				shared.HandleSuccessMessage(w, "Автор успешно удален")
+				shared.HandleSuccessMessage(w, "Валюта успешно удалена")
 
 			} else {
 				shared.HandleOtherError(w, shared.ErrHeadersNotFilled.Error(), shared.ErrHeadersNotFilled, http.StatusBadRequest)

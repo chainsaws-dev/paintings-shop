@@ -36,7 +36,7 @@ Run this command to start documentation server on localhost:6060:
 
 `godoc -http=:6060` 
 
-Documentation on this server will be available [here](http://localhost:6060/pkg/shopping-lists-and-recipes/)
+Documentation on this server will be available [here](http://localhost:6060/pkg/paintings-shop/)
 
 ## Run
 To run project without compilation run the following:
@@ -64,3 +64,17 @@ To build in project root directory run the following:
 ## Export coverage stats
 `go test -coverprofile c.out`
 `go tool cover -html=c.out`
+
+## Docker-compose
+
+1. Create .env file with folowing contents:
+`DATABASE_USERNAME=ExampleDBUsername
+DATABASE_PASSWORD=ExamplePassword
+WEB_ADMIN_CRED=example@example.com@@examplepassword
+WEB_URL=http://localhost:8080`
+
+2. In project root folder run:
+`sudo docker-compose up -d` - to start database and webservice containers
+`sudo docker-compose up --build -d` - to rebuild docker images and run database and webservice containers
+
+`sudo docker-compose down --volumes` - to stop database and webservice containers

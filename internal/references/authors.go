@@ -5,14 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"paintings-shop/packages/databases"
-	"paintings-shop/packages/setup"
+	"paintings-shop/internal/databases"
+	"paintings-shop/internal/setup"
 	"paintings-shop/packages/shared"
 	"paintings-shop/packages/signinupout"
 	"strconv"
 )
 
-// Addresses - обработчик для работы со справочником адреса
+// Authors - обработчик для работы со справочником авторы
 //
 // Аутентификация
 //
@@ -41,12 +41,12 @@ import (
 // POST
 //
 // 	тело запроса должно быть заполнено JSON объектом
-// 	идентичным по структуре Currency (см. файл models.go в пакете databases)
+// 	идентичным по структуре Author (см. файл models.go в пакете databases)
 //
 // DELETE
 //
 // 	ожидается заголовок ItemID с индексом элемента, который нужно удалить
-func Addresses(w http.ResponseWriter, req *http.Request) {
+func Authors(w http.ResponseWriter, req *http.Request) {
 
 	role, auth := signinupout.AuthGeneral(w, req)
 
@@ -59,7 +59,7 @@ func Addresses(w http.ResponseWriter, req *http.Request) {
 	switch {
 	case req.Method == http.MethodGet:
 
-		if setup.ServerSettings.CheckRoleForRead(role, "Addresses") {
+		if setup.ServerSettings.CheckRoleForRead(role, "Authors") {
 
 			PageStr := req.Header.Get("Page")
 			LimitStr := req.Header.Get("Limit")
@@ -82,12 +82,12 @@ func Addresses(w http.ResponseWriter, req *http.Request) {
 						return
 					}
 
-					var Addr databases.Address
+					var au databases.Author
 
-					Addr, err = databases.PostgreSQLSingleAddressSelect(ID, dbc)
+					au, err = databases.PostgreSQLSingleAuthorSelect(ID, dbc)
 
 					if err != nil {
-						if errors.Is(err, databases.ErrAddressNotFound) {
+						if errors.Is(err, databases.ErrAuthorNotFound) {
 							shared.HandleOtherError(w, err.Error(), err, http.StatusBadRequest)
 							return
 						}
@@ -97,7 +97,7 @@ func Addresses(w http.ResponseWriter, req *http.Request) {
 						}
 					}
 
-					shared.WriteObjectToJSON(false, w, Addr)
+					shared.WriteObjectToJSON(w, au)
 
 				} else {
 					shared.HandleOtherError(w, shared.ErrHeadersNotFilled.Error(), shared.ErrHeadersNotFilled, http.StatusBadRequest)
@@ -118,9 +118,9 @@ func Addresses(w http.ResponseWriter, req *http.Request) {
 					return
 				}
 
-				var Addr databases.AddressesResponse
+				var au databases.AuthorsResponse
 
-				Addr, err = databases.PostgreSQLAddressesSelect(Page, Limit, dbc)
+				au, err = databases.PostgreSQLAuthorsSelect(Page, Limit, dbc)
 
 				if err != nil {
 					if errors.Is(err, databases.ErrLimitOffsetInvalid) {
@@ -128,7 +128,7 @@ func Addresses(w http.ResponseWriter, req *http.Request) {
 						return
 					}
 
-					if errors.Is(err, databases.ErrAddressNotFound) {
+					if errors.Is(err, databases.ErrAuthorNotFound) {
 						shared.HandleOtherError(w, err.Error(), err, http.StatusBadRequest)
 						return
 					}
@@ -138,7 +138,7 @@ func Addresses(w http.ResponseWriter, req *http.Request) {
 					}
 				}
 
-				shared.WriteObjectToJSON(false, w, Addr)
+				shared.WriteObjectToJSON(w, au)
 
 			}
 
@@ -148,13 +148,12 @@ func Addresses(w http.ResponseWriter, req *http.Request) {
 
 	case req.Method == http.MethodPost:
 
-		if setup.ServerSettings.CheckRoleForChange(role, "Addresses") {
+		if setup.ServerSettings.CheckRoleForChange(role, "Authors") {
 
 			// Читаем тело запроса в структуру
-			var Addr databases.Address
-			Addr.Country = databases.Country{}
+			var au databases.Author
 
-			err = json.NewDecoder(req.Body).Decode(&Addr)
+			err = json.NewDecoder(req.Body).Decode(&au)
 
 			if shared.HandleOtherError(w, "Invalid JSON in request body", err, http.StatusBadRequest) {
 				return
@@ -167,13 +166,13 @@ func Addresses(w http.ResponseWriter, req *http.Request) {
 			}
 			defer dbc.Close()
 
-			Addr, err = databases.PostgreSQLAddressChange(Addr, dbc)
+			au, err = databases.PostgreSQLAuthorsChange(au, dbc)
 
 			if shared.HandleInternalServerError(w, err) {
 				return
 			}
 
-			shared.WriteObjectToJSON(false, w, Addr)
+			shared.WriteObjectToJSON(w, au)
 
 		} else {
 			shared.HandleOtherError(w, shared.ErrForbidden.Error(), shared.ErrForbidden, http.StatusForbidden)
@@ -181,7 +180,7 @@ func Addresses(w http.ResponseWriter, req *http.Request) {
 
 	case req.Method == http.MethodDelete:
 
-		if setup.ServerSettings.CheckRoleForDelete(role, "Addresses") {
+		if setup.ServerSettings.CheckRoleForDelete(role, "Authors") {
 
 			ItemID := req.Header.Get("ItemID")
 
@@ -200,7 +199,7 @@ func Addresses(w http.ResponseWriter, req *http.Request) {
 				}
 				defer dbc.Close()
 
-				err = databases.PostgreSQLAddressesDelete(ID, dbc)
+				err = databases.PostgreSQLAuthorsDelete(ID, dbc)
 
 				if err != nil {
 					if errors.Is(databases.ErrNoDeleteIfLinksExist, err) {
@@ -213,7 +212,7 @@ func Addresses(w http.ResponseWriter, req *http.Request) {
 					}
 				}
 
-				shared.HandleSuccessMessage(w, "Адрес успешно удалён")
+				shared.HandleSuccessMessage(w, "Автор успешно удален")
 
 			} else {
 				shared.HandleOtherError(w, shared.ErrHeadersNotFilled.Error(), shared.ErrHeadersNotFilled, http.StatusBadRequest)

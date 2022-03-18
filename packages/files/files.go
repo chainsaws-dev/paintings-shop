@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"paintings-shop/packages/databases"
-	"paintings-shop/packages/setup"
+	"paintings-shop/internal/databases"
+	"paintings-shop/internal/setup"
 	"paintings-shop/packages/shared"
 	"paintings-shop/packages/signinupout"
 	"strconv"
@@ -16,8 +16,8 @@ import (
 
 // Список типовых ошибок
 var (
-	ErrHeaderDeleteNotFilled = errors.New("не заполнен обязательный параметр для удаления файла: FileID")
-	ErrUnsupportedFileType   = errors.New("неподдерживаемый тип файла")
+	ErrHeaderDeleteNotFilled = errors.New("Не заполнен обязательный параметр для удаления файла: FileID")
+	ErrUnsupportedFileType   = errors.New("Неподдерживаемый тип файла")
 )
 
 // HandleFiles - обрабатывает POST, GET и DELETE запросы для работы с файлами
@@ -99,7 +99,7 @@ func HandleFiles(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		shared.WriteObjectToJSON(false, w, FilesResponse)
+		shared.WriteObjectToJSON(w, FilesResponse)
 
 	case req.Method == http.MethodPost:
 
@@ -113,7 +113,7 @@ func HandleFiles(w http.ResponseWriter, req *http.Request) {
 				return
 			}
 
-			shared.WriteObjectToJSON(false, w, furesp)
+			shared.WriteObjectToJSON(w, furesp)
 
 		} else {
 			shared.HandleOtherError(w, shared.ErrForbidden.Error(), shared.ErrForbidden, http.StatusForbidden)

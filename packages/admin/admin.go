@@ -4,14 +4,14 @@ package admin
 import (
 	"database/sql"
 	"errors"
+	"paintings-shop/internal/databases"
+	"paintings-shop/internal/settings"
 	"paintings-shop/packages/authentication"
-	"paintings-shop/packages/databases"
-	"paintings-shop/packages/settings"
 )
 
 // Список типовых ошибок
 var (
-	ErrBasicFieldsNotFilled = errors.New("Не заполнены обязательные поля, невозможно создать пользователя")
+	ErrBasicFieldsNotFilled = errors.New("не заполнены обязательные поля, невозможно создать пользователя")
 )
 
 // CreateAdmin - создаём пользователя для администратора

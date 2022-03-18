@@ -9,10 +9,10 @@ import (
 	"net/http"
 	"time"
 
+	"paintings-shop/internal/databases"
+	"paintings-shop/internal/setup"
 	"paintings-shop/packages/authentication"
-	"paintings-shop/packages/databases"
 	"paintings-shop/packages/securecookies"
-	"paintings-shop/packages/setup"
 	"paintings-shop/packages/shared"
 
 	"github.com/gorilla/securecookie"
@@ -215,7 +215,7 @@ func secretauth(w http.ResponseWriter, req *http.Request, AuthRequest authentica
 			}
 		}
 
-		shared.WriteObjectToJSON(false, w, AuthResponse)
+		shared.WriteObjectToJSON(w, AuthResponse)
 
 	} else {
 		shared.HandleOtherError(w, ErrNotAuthorized.Error(), ErrNotAuthorized, http.StatusUnauthorized)
@@ -561,6 +561,7 @@ func RegularConfirmTokensCleanup() {
 		// Подключаемся под ролью админа
 		dbc := setup.ServerSettings.SQL.ConnectAsAdmin()
 		if dbc == nil {
+			log.Println(databases.ErrNoConnection)
 			return
 		}
 

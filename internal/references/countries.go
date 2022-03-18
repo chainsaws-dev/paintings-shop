@@ -5,14 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"paintings-shop/packages/databases"
-	"paintings-shop/packages/setup"
+	"paintings-shop/internal/databases"
+	"paintings-shop/internal/setup"
 	"paintings-shop/packages/shared"
 	"paintings-shop/packages/signinupout"
 	"strconv"
 )
 
-// Terms - обработчик для работы со справочником условия продажи
+// Countries - обработчик для работы со справочником страны
 //
 // Аутентификация
 //
@@ -41,12 +41,12 @@ import (
 // POST
 //
 // 	тело запроса должно быть заполнено JSON объектом
-// 	идентичным по структуре Terms (см. файл models.go в пакете databases)
+// 	идентичным по структуре Country (см. файл models.go в пакете databases)
 //
 // DELETE
 //
 // 	ожидается заголовок ItemID с индексом элемента, который нужно удалить
-func Terms(w http.ResponseWriter, req *http.Request) {
+func Countries(w http.ResponseWriter, req *http.Request) {
 
 	role, auth := signinupout.AuthGeneral(w, req)
 
@@ -59,7 +59,7 @@ func Terms(w http.ResponseWriter, req *http.Request) {
 	switch {
 	case req.Method == http.MethodGet:
 
-		if setup.ServerSettings.CheckRoleForRead(role, "Terms") {
+		if setup.ServerSettings.CheckRoleForRead(role, "Countries") {
 
 			PageStr := req.Header.Get("Page")
 			LimitStr := req.Header.Get("Limit")
@@ -82,12 +82,12 @@ func Terms(w http.ResponseWriter, req *http.Request) {
 						return
 					}
 
-					var term databases.Term
+					var Country databases.Country
 
-					term, err = databases.PostgreSQLSingleTermSelect(ID, dbc)
+					Country, err = databases.PostgreSQLSingleCountrySelect(ID, dbc)
 
 					if err != nil {
-						if errors.Is(err, databases.ErrTermNotFound) {
+						if errors.Is(err, databases.ErrContryNotFound) {
 							shared.HandleOtherError(w, err.Error(), err, http.StatusBadRequest)
 							return
 						}
@@ -97,7 +97,7 @@ func Terms(w http.ResponseWriter, req *http.Request) {
 						}
 					}
 
-					shared.WriteObjectToJSON(false, w, term)
+					shared.WriteObjectToJSON(w, Country)
 
 				} else {
 					shared.HandleOtherError(w, shared.ErrHeadersNotFilled.Error(), shared.ErrHeadersNotFilled, http.StatusBadRequest)
@@ -118,9 +118,9 @@ func Terms(w http.ResponseWriter, req *http.Request) {
 					return
 				}
 
-				var Terms databases.TermsResponse
+				var Countries databases.CountriesResponse
 
-				Terms, err = databases.PostgreSQLTermsSelect(Page, Limit, dbc)
+				Countries, err = databases.PostgreSQLCountriesSelect(Page, Limit, dbc)
 
 				if err != nil {
 					if errors.Is(err, databases.ErrLimitOffsetInvalid) {
@@ -138,7 +138,7 @@ func Terms(w http.ResponseWriter, req *http.Request) {
 					}
 				}
 
-				shared.WriteObjectToJSON(false, w, Terms)
+				shared.WriteObjectToJSON(w, Countries)
 
 			}
 
@@ -148,13 +148,12 @@ func Terms(w http.ResponseWriter, req *http.Request) {
 
 	case req.Method == http.MethodPost:
 
-		if setup.ServerSettings.CheckRoleForChange(role, "Terms") {
+		if setup.ServerSettings.CheckRoleForChange(role, "Countries") {
 
 			// Читаем тело запроса в структуру
-			var term databases.Term
-			term.Currency = databases.Currency{}
+			var OrgInfo databases.Country
 
-			err = json.NewDecoder(req.Body).Decode(&term)
+			err = json.NewDecoder(req.Body).Decode(&OrgInfo)
 
 			if shared.HandleOtherError(w, "Invalid JSON in request body", err, http.StatusBadRequest) {
 				return
@@ -167,13 +166,13 @@ func Terms(w http.ResponseWriter, req *http.Request) {
 			}
 			defer dbc.Close()
 
-			term, err = databases.PostgreSQLTermsChange(term, dbc)
+			OrgInfo, err = databases.PostgreSQLCountriesChange(OrgInfo, dbc)
 
 			if shared.HandleInternalServerError(w, err) {
 				return
 			}
 
-			shared.WriteObjectToJSON(false, w, term)
+			shared.WriteObjectToJSON(w, OrgInfo)
 
 		} else {
 			shared.HandleOtherError(w, shared.ErrForbidden.Error(), shared.ErrForbidden, http.StatusForbidden)
@@ -181,7 +180,7 @@ func Terms(w http.ResponseWriter, req *http.Request) {
 
 	case req.Method == http.MethodDelete:
 
-		if setup.ServerSettings.CheckRoleForDelete(role, "Terms") {
+		if setup.ServerSettings.CheckRoleForDelete(role, "Countries") {
 
 			ItemID := req.Header.Get("ItemID")
 
@@ -200,7 +199,7 @@ func Terms(w http.ResponseWriter, req *http.Request) {
 				}
 				defer dbc.Close()
 
-				err = databases.PostgreSQLTermsDelete(ID, dbc)
+				err = databases.PostgreSQLCountriesDelete(ID, dbc)
 
 				if err != nil {
 					if errors.Is(databases.ErrNoDeleteIfLinksExist, err) {
@@ -213,7 +212,7 @@ func Terms(w http.ResponseWriter, req *http.Request) {
 					}
 				}
 
-				shared.HandleSuccessMessage(w, "Условие успешно удалено")
+				shared.HandleSuccessMessage(w, "Страна успешно удалена")
 
 			} else {
 				shared.HandleOtherError(w, shared.ErrHeadersNotFilled.Error(), shared.ErrHeadersNotFilled, http.StatusBadRequest)

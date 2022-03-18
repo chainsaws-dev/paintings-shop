@@ -6,7 +6,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"paintings-shop/packages/databases"
+	"paintings-shop/internal/databases"
 	"paintings-shop/packages/randompassword"
 	"paintings-shop/packages/shared"
 )
