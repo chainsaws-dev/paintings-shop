@@ -43,10 +43,10 @@ var (
 func PostgreSQLGetConnString(Login string, Password string, Addr string, DbName string, initialsetup bool) string {
 
 	if initialsetup {
-		return fmt.Sprintf("postgres://%v:%v@%v/", Login, Password, Addr)
+		return fmt.Sprintf("postgres://%v:%v@%v/?sslmode=disable", Login, Password, Addr)
 	}
 
-	return fmt.Sprintf("postgres://%v:%v@%v/%v", Login, Password, Addr, DbName)
+	return fmt.Sprintf("postgres://%v:%v@%v/%v?sslmode=disable", Login, Password, Addr, DbName)
 
 }
 
