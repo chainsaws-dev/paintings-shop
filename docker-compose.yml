@@ -15,7 +15,7 @@ services:
         ports:
         - '5432:5432'
     web:
-        image: shopping-lists-and-recipes_web:latest
+        image: paintings-shop_web:latest
         environment: 
             ADMIN_CRED: ${WEB_ADMIN_CRED}
             URL: ${WEB_URL}

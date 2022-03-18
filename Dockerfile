@@ -1,13 +1,13 @@
 FROM golang:1.18-alpine
-WORKDIR /go/src/paintings-shop
+WORKDIR $GOPATH/src/paintings-shop
 ENV DATABASE_HOST db
 COPY . . 
 RUN go get -d -v ./...
 RUN apk update
-RUN apk add ffmpeg-dev build-base
-WORKDIR /go/src/paintings-shop/cmd/app
+RUN apk add ffmpeg-dev build-base git
+WORKDIR $GOPATH/src/paintings-shop/cmd/app
 RUN go build -o $GOPATH/bin/paintings-shop
-RUN rm -rf /go/src/*
+RUN rm -rf $GOPATH/src/*
 WORKDIR $GOPATH/bin
 COPY ./cmd/app/public ./public
 COPY ./cmd/app/logs ./logs
