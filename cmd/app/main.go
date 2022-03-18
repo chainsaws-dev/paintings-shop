@@ -202,5 +202,29 @@ func GetRunArgs() setup.InitParams {
 		}
 	}
 
+	// Для работы через докер
+	admincred := os.Getenv("ADMIN_CRED")
+	if len(admincred) > 0 {
+		SetAdminCredentials(admincred, &initpar)
+	}
+
+	WebUrl := os.Getenv("URL")
+	if len(WebUrl) > 0 {
+		initpar.WebsiteURL = WebUrl
+	}
+
 	return initpar
+}
+
+func SetAdminCredentials(runarg string, initpar *setup.InitParams) {
+	basestring := strings.ReplaceAll(runarg, "-admincred:", "")
+	lp := strings.Split(basestring, "@@")
+
+	if len(lp) == 2 {
+		initpar.AdminLogin = lp[0]
+		initpar.AdminPass = lp[1]
+	} else {
+		log.Println(lp)
+		shared.WriteErrToLog(ErrWrongArgumentFormat)
+	}
 }

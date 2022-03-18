@@ -132,6 +132,14 @@ func InitialSettings(initpar InitParams) {
 
 		messages.SetCredentials(ServerSettings.SMTP)
 
+		DbHost := os.Getenv("DATABASE_HOST")
+
+		if len(DbHost) > 0 {
+			ServerSettings.SQL.Addr = DbHost
+		} else {
+			ServerSettings.SQL.Addr = "localhost"
+		}
+
 		log.Println("Файл настроек settings.json успешно прочитан")
 
 		// Удаляем базу данных и роли
