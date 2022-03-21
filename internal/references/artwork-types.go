@@ -65,13 +65,6 @@ func ArtworkTypes(w http.ResponseWriter, req *http.Request) {
 			LimitStr := req.Header.Get("Limit")
 			ItemID := req.Header.Get("ItemID")
 
-			// Создаём соединение с базой данных с ролью пользователя
-			dbc := setup.ServerSettings.SQL.Connect(w, role)
-			if dbc == nil {
-				return
-			}
-			defer dbc.Close()
-
 			if PageStr == "" && LimitStr == "" {
 
 				if ItemID != "" {
@@ -84,7 +77,7 @@ func ArtworkTypes(w http.ResponseWriter, req *http.Request) {
 
 					var ArtType databases.ArtworkType
 
-					ArtType, err = databases.PostgreSQLSingleArtworkTypeSelect(ID, dbc)
+					ArtType, err = databases.PostgreSQLSingleArtworkTypeSelect(ID, setup.ServerSettings.SQL.ConnPool)
 
 					if err != nil {
 						if errors.Is(err, databases.ErrArtTypeNotFound) {
@@ -120,7 +113,7 @@ func ArtworkTypes(w http.ResponseWriter, req *http.Request) {
 
 				var ArtTypes databases.ArtworkTypesResponse
 
-				ArtTypes, err = databases.PostgreSQLArtworkTypesSelect(Page, Limit, dbc)
+				ArtTypes, err = databases.PostgreSQLArtworkTypesSelect(Page, Limit, setup.ServerSettings.SQL.ConnPool)
 
 				if err != nil {
 					if errors.Is(err, databases.ErrLimitOffsetInvalid) {
@@ -159,14 +152,7 @@ func ArtworkTypes(w http.ResponseWriter, req *http.Request) {
 				return
 			}
 
-			// Создаём соединение с базой данных с ролью пользователя
-			dbc := setup.ServerSettings.SQL.Connect(w, role)
-			if dbc == nil {
-				return
-			}
-			defer dbc.Close()
-
-			ArtType, err = databases.PostgreSQLArtworkTypeChange(ArtType, dbc)
+			ArtType, err = databases.PostgreSQLArtworkTypeChange(ArtType, setup.ServerSettings.SQL.ConnPool)
 
 			if shared.HandleInternalServerError(w, err) {
 				return
@@ -192,14 +178,7 @@ func ArtworkTypes(w http.ResponseWriter, req *http.Request) {
 					return
 				}
 
-				// Создаём соединение с базой данных с ролью пользователя
-				dbc := setup.ServerSettings.SQL.Connect(w, role)
-				if dbc == nil {
-					return
-				}
-				defer dbc.Close()
-
-				err = databases.PostgreSQLArtworkTypesDelete(ID, dbc)
+				err = databases.PostgreSQLArtworkTypesDelete(ID, setup.ServerSettings.SQL.ConnPool)
 
 				if err != nil {
 					if errors.Is(databases.ErrNoDeleteIfLinksExist, err) {

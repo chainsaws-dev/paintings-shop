@@ -2,12 +2,12 @@
 package databases
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"log"
 	"math"
 
-	_ "github.com/lib/pq" // Драйвер PostgreSQL
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 // PostgreSQLAuthorsSelect - получает список авторов
@@ -17,7 +17,7 @@ import (
 // page - номер страницы результата для вывода
 // limit - количество строк на странице
 //
-func PostgreSQLAuthorsSelect(page int, limit int, dbc *sql.DB) (AuthorsResponse, error) {
+func PostgreSQLAuthorsSelect(page int, limit int, dbc *pgxpool.Pool) (AuthorsResponse, error) {
 
 	var result AuthorsResponse
 	result.ArtAuthors = AuthorsList{}
@@ -27,7 +27,7 @@ func PostgreSQLAuthorsSelect(page int, limit int, dbc *sql.DB) (AuthorsResponse,
 			FROM 
 				"references".authors;`
 
-	row := dbc.QueryRow(sqlreq)
+	row := dbc.QueryRow(context.Background(), sqlreq)
 
 	var countRows int
 
@@ -90,7 +90,7 @@ func PostgreSQLAuthorsSelect(page int, limit int, dbc *sql.DB) (AuthorsResponse,
 		return result, ErrLimitOffsetInvalid
 	}
 
-	rows, err := dbc.Query(sqlreq)
+	rows, err := dbc.Query(context.Background(), sqlreq)
 
 	if err != nil {
 		return result, err
@@ -133,7 +133,7 @@ func PostgreSQLAuthorsSelect(page int, limit int, dbc *sql.DB) (AuthorsResponse,
 //
 // ID - номер автора в базе данных
 //
-func PostgreSQLSingleAuthorSelect(ID int, dbc *sql.DB) (Author, error) {
+func PostgreSQLSingleAuthorSelect(ID int, dbc *pgxpool.Pool) (Author, error) {
 
 	var result Author
 	result.Photo = File{}
@@ -147,7 +147,7 @@ func PostgreSQLSingleAuthorSelect(ID int, dbc *sql.DB) (Author, error) {
 			WHERE 
 				id=$1;`
 
-	row := dbc.QueryRow(sqlreq, ID)
+	row := dbc.QueryRow(context.Background(), sqlreq, ID)
 
 	var countRows int
 
@@ -210,7 +210,7 @@ func PostgreSQLSingleAuthorSelect(ID int, dbc *sql.DB) (Author, error) {
 				authors.id
 			LIMIT 1;`
 
-	row = dbc.QueryRow(sqlreq, ID)
+	row = dbc.QueryRow(context.Background(), sqlreq, ID)
 
 	var f File
 	var u User
@@ -235,7 +235,7 @@ func PostgreSQLSingleAuthorSelect(ID int, dbc *sql.DB) (Author, error) {
 
 // PostgreSQLAuthorsChange - определяет существует ли данная страна и вызывает
 // INSERT или UPDATE в зависимости от результата проверки
-func PostgreSQLAuthorsChange(au Author, dbc *sql.DB) (Author, error) {
+func PostgreSQLAuthorsChange(au Author, dbc *pgxpool.Pool) (Author, error) {
 
 	found, au, err := PostgreSQLFindAuthor(au, dbc)
 
@@ -253,7 +253,7 @@ func PostgreSQLAuthorsChange(au Author, dbc *sql.DB) (Author, error) {
 }
 
 // PostgreSQLFindAuthor - ищет страну по ID
-func PostgreSQLFindAuthor(au Author, dbc *sql.DB) (bool, Author, error) {
+func PostgreSQLFindAuthor(au Author, dbc *pgxpool.Pool) (bool, Author, error) {
 
 	sqlreq := `SELECT 
 					COUNT(*)
@@ -262,7 +262,7 @@ func PostgreSQLFindAuthor(au Author, dbc *sql.DB) (bool, Author, error) {
 				WHERE 
 					id=$1;`
 
-	CountRow := dbc.QueryRow(sqlreq, au.ID)
+	CountRow := dbc.QueryRow(context.Background(), sqlreq, au.ID)
 
 	var ItemsCount int
 	err := CountRow.Scan(&ItemsCount)
@@ -280,15 +280,15 @@ func PostgreSQLFindAuthor(au Author, dbc *sql.DB) (bool, Author, error) {
 }
 
 // PostgreSQLAuthorsInsert - добавляет нового автора
-func PostgreSQLAuthorsInsert(au Author, dbc *sql.DB) (Author, error) {
+func PostgreSQLAuthorsInsert(au Author, dbc *pgxpool.Pool) (Author, error) {
 
-	dbc.Exec("BEGIN")
+	dbc.Exec(context.Background(), "BEGIN")
 
 	sqlreq := `INSERT INTO 
 						"references".authors(first_name, middle_name, last_name, bio, file_id, country_id, city, eng_name, user_id)
 						VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id;`
 
-	row := dbc.QueryRow(sqlreq, au.FirstName, au.MiddleName, au.LastName, au.Bio,
+	row := dbc.QueryRow(context.Background(), sqlreq, au.FirstName, au.MiddleName, au.LastName, au.Bio,
 		au.Photo.ID, au.OriginCountry.ID, au.OriginCity, au.EngName, au.User.GUID)
 
 	var curid int
@@ -302,21 +302,21 @@ func PostgreSQLAuthorsInsert(au Author, dbc *sql.DB) (Author, error) {
 
 	log.Printf("Данные об авторе сохранены в базу данных под индексом %v", curid)
 
-	dbc.Exec("COMMIT")
+	dbc.Exec(context.Background(), "COMMIT")
 
 	return au, nil
 }
 
 // PostgreSQLAuthorsUpdate - обновляет существующего автора
-func PostgreSQLAuthorsUpdate(au Author, dbc *sql.DB) (Author, error) {
+func PostgreSQLAuthorsUpdate(au Author, dbc *pgxpool.Pool) (Author, error) {
 
-	dbc.Exec("BEGIN")
+	dbc.Exec(context.Background(), "BEGIN")
 
 	sqlreq := `UPDATE "references".authors		
 				SET (first_name, middle_name, last_name, bio, file_id, country_id, city, eng_name, user_id) = ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 				WHERE id=$10;`
 
-	_, err := dbc.Exec(sqlreq, au.FirstName, au.MiddleName, au.LastName, au.Bio,
+	_, err := dbc.Exec(context.Background(), sqlreq, au.FirstName, au.MiddleName, au.LastName, au.Bio,
 		au.Photo.FileID, au.OriginCountry.ID, au.OriginCity, au.EngName, au.User.GUID,
 		au.ID)
 
@@ -324,19 +324,19 @@ func PostgreSQLAuthorsUpdate(au Author, dbc *sql.DB) (Author, error) {
 		return au, PostgreSQLRollbackIfError(err, false, dbc)
 	}
 
-	dbc.Exec("COMMIT")
+	dbc.Exec(context.Background(), "COMMIT")
 
 	return au, nil
 }
 
 // PostgreSQLAuthorsDelete - удаляет страну по номеру
-func PostgreSQLAuthorsDelete(ID int, dbc *sql.DB) error {
+func PostgreSQLAuthorsDelete(ID int, dbc *pgxpool.Pool) error {
 
-	dbc.Exec("BEGIN")
+	dbc.Exec(context.Background(), "BEGIN")
 
 	sqlreq := `DELETE FROM "references".authors WHERE id=$1;`
 
-	_, err := dbc.Exec(sqlreq, ID)
+	_, err := dbc.Exec(context.Background(), sqlreq, ID)
 
 	if err != nil {
 		return PostgreSQLRollbackIfError(err, false, dbc)
@@ -344,13 +344,13 @@ func PostgreSQLAuthorsDelete(ID int, dbc *sql.DB) error {
 
 	sqlreq = `select setval('"references"."authors_id_seq"',(select COALESCE(max("id"),1) from "references"."authors")::bigint);`
 
-	_, err = dbc.Exec(sqlreq)
+	_, err = dbc.Exec(context.Background(), sqlreq)
 
 	if err != nil {
 		return PostgreSQLRollbackIfError(err, false, dbc)
 	}
 
-	dbc.Exec("COMMIT")
+	dbc.Exec(context.Background(), "COMMIT")
 
 	return nil
 }

@@ -1,10 +1,10 @@
 // Package databases - реализует весь функционал необходимый для взаимодействия с базами данных
 package databases
 
-import "database/sql"
+import "github.com/jackc/pgx/v4/pgxpool"
 
 // PostgreSQLCreateTablesReferences - создаёт таблицы для схемы references
-func PostgreSQLCreateTablesReferences(dbc *sql.DB) {
+func PostgreSQLCreateTablesReferences(dbc *pgxpool.Pool) {
 
 	// Рецепты и список покупок
 

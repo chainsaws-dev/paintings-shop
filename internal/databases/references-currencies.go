@@ -2,12 +2,12 @@
 package databases
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"log"
 	"math"
 
-	_ "github.com/lib/pq" // Драйвер PostgreSQL
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 // PostgreSQLCurrenciesSelect - получает список валют
@@ -17,7 +17,7 @@ import (
 // page - номер страницы результата для вывода
 // limit - количество строк на странице
 //
-func PostgreSQLCurrenciesSelect(page int, limit int, dbc *sql.DB) (CurrenciesResponse, error) {
+func PostgreSQLCurrenciesSelect(page int, limit int, dbc *pgxpool.Pool) (CurrenciesResponse, error) {
 
 	var result CurrenciesResponse
 	result.Currencies = CurrenciesList{}
@@ -27,7 +27,7 @@ func PostgreSQLCurrenciesSelect(page int, limit int, dbc *sql.DB) (CurrenciesRes
 			FROM 
 				"references".currencies;`
 
-	row := dbc.QueryRow(sqlreq)
+	row := dbc.QueryRow(context.Background(), sqlreq)
 
 	var countRows int
 
@@ -56,7 +56,7 @@ func PostgreSQLCurrenciesSelect(page int, limit int, dbc *sql.DB) (CurrenciesRes
 		return result, ErrLimitOffsetInvalid
 	}
 
-	rows, err := dbc.Query(sqlreq)
+	rows, err := dbc.Query(context.Background(), sqlreq)
 
 	if err != nil {
 		return result, err
@@ -89,7 +89,7 @@ func PostgreSQLCurrenciesSelect(page int, limit int, dbc *sql.DB) (CurrenciesRes
 //
 // ID - номер валюты в базе данных
 //
-func PostgreSQLSingleCurrencySelect(ID int, dbc *sql.DB) (Currency, error) {
+func PostgreSQLSingleCurrencySelect(ID int, dbc *pgxpool.Pool) (Currency, error) {
 
 	var result Currency
 
@@ -100,7 +100,7 @@ func PostgreSQLSingleCurrencySelect(ID int, dbc *sql.DB) (Currency, error) {
 			WHERE 
 				id=$1;`
 
-	row := dbc.QueryRow(sqlreq, ID)
+	row := dbc.QueryRow(context.Background(), sqlreq, ID)
 
 	var countRows int
 
@@ -129,7 +129,7 @@ func PostgreSQLSingleCurrencySelect(ID int, dbc *sql.DB) (Currency, error) {
 					id
 				LIMIT 1;`
 
-	row = dbc.QueryRow(sqlreq, ID)
+	row = dbc.QueryRow(context.Background(), sqlreq, ID)
 
 	err = row.Scan(&result.ID, &result.RusName, &result.EngName,
 		&result.LatISO, &result.DigISO, &result.Symbol)
@@ -143,7 +143,7 @@ func PostgreSQLSingleCurrencySelect(ID int, dbc *sql.DB) (Currency, error) {
 
 // PostgreSQLCurrenciesChange - определяет существует ли данная валюта и вызывает
 // INSERT или UPDATE в зависимости от результата проверки
-func PostgreSQLCurrenciesChange(cp Currency, dbc *sql.DB) (Currency, error) {
+func PostgreSQLCurrenciesChange(cp Currency, dbc *pgxpool.Pool) (Currency, error) {
 
 	found, cp, err := PostgreSQLFindCurrency(cp, dbc)
 
@@ -161,7 +161,7 @@ func PostgreSQLCurrenciesChange(cp Currency, dbc *sql.DB) (Currency, error) {
 }
 
 // PostgreSQLFindCurrency - ищет валюту по ID
-func PostgreSQLFindCurrency(cp Currency, dbc *sql.DB) (bool, Currency, error) {
+func PostgreSQLFindCurrency(cp Currency, dbc *pgxpool.Pool) (bool, Currency, error) {
 
 	sqlreq := `SELECT 
 					COUNT(*)
@@ -170,7 +170,7 @@ func PostgreSQLFindCurrency(cp Currency, dbc *sql.DB) (bool, Currency, error) {
 				WHERE 
 					id=$1;`
 
-	CountRow := dbc.QueryRow(sqlreq, cp.ID)
+	CountRow := dbc.QueryRow(context.Background(), sqlreq, cp.ID)
 
 	var ItemsCount int
 	err := CountRow.Scan(&ItemsCount)
@@ -188,15 +188,15 @@ func PostgreSQLFindCurrency(cp Currency, dbc *sql.DB) (bool, Currency, error) {
 }
 
 // PostgreSQLCurrenciesInsert - добавляет новую валюту
-func PostgreSQLCurrenciesInsert(cp Currency, dbc *sql.DB) (Currency, error) {
+func PostgreSQLCurrenciesInsert(cp Currency, dbc *pgxpool.Pool) (Currency, error) {
 
-	dbc.Exec("BEGIN")
+	dbc.Exec(context.Background(), "BEGIN")
 
 	sqlreq := `INSERT INTO 
 						"references".currencies(rus_name, eng_name, iso_lat_3, iso_dig, symbol)
 						VALUES ($1, $2, $3, $4, $5) RETURNING id;`
 
-	row := dbc.QueryRow(sqlreq, cp.RusName, cp.EngName, cp.LatISO, cp.DigISO, cp.Symbol)
+	row := dbc.QueryRow(context.Background(), sqlreq, cp.RusName, cp.EngName, cp.LatISO, cp.DigISO, cp.Symbol)
 
 	var curid int
 	err := row.Scan(&curid)
@@ -209,39 +209,39 @@ func PostgreSQLCurrenciesInsert(cp Currency, dbc *sql.DB) (Currency, error) {
 
 	log.Printf("Данные о валюте сохранены в базу данных под индексом %v", curid)
 
-	dbc.Exec("COMMIT")
+	dbc.Exec(context.Background(), "COMMIT")
 
 	return cp, nil
 }
 
 // PostgreSQLCurrenciesUpdate - обновляет существующего контрагента
-func PostgreSQLCurrenciesUpdate(cp Currency, dbc *sql.DB) (Currency, error) {
+func PostgreSQLCurrenciesUpdate(cp Currency, dbc *pgxpool.Pool) (Currency, error) {
 
-	dbc.Exec("BEGIN")
+	dbc.Exec(context.Background(), "BEGIN")
 
 	sqlreq := `UPDATE "references".currencies		
 				SET (rus_name, eng_name, iso_lat_3, iso_dig, symbol) = ($1, $2, $3, $4, $5)
 				WHERE id=$6;`
 
-	_, err := dbc.Exec(sqlreq, cp.RusName, cp.EngName, cp.LatISO, cp.DigISO, cp.Symbol, cp.ID)
+	_, err := dbc.Exec(context.Background(), sqlreq, cp.RusName, cp.EngName, cp.LatISO, cp.DigISO, cp.Symbol, cp.ID)
 
 	if err != nil {
 		return cp, PostgreSQLRollbackIfError(err, false, dbc)
 	}
 
-	dbc.Exec("COMMIT")
+	dbc.Exec(context.Background(), "COMMIT")
 
 	return cp, nil
 }
 
 // PostgreSQLCurrenciesDelete - удаляет валюту по номеру
-func PostgreSQLCurrenciesDelete(ID int, dbc *sql.DB) error {
+func PostgreSQLCurrenciesDelete(ID int, dbc *pgxpool.Pool) error {
 
-	dbc.Exec("BEGIN")
+	dbc.Exec(context.Background(), "BEGIN")
 
 	sqlreq := `DELETE FROM "references".currencies WHERE id=$1;`
 
-	_, err := dbc.Exec(sqlreq, ID)
+	_, err := dbc.Exec(context.Background(), sqlreq, ID)
 
 	if err != nil {
 		return PostgreSQLRollbackIfError(err, false, dbc)
@@ -249,13 +249,13 @@ func PostgreSQLCurrenciesDelete(ID int, dbc *sql.DB) error {
 
 	sqlreq = `select setval('"references"."currencies_id_seq"',(select COALESCE(max("id"),1) from "references"."currencies")::bigint);`
 
-	_, err = dbc.Exec(sqlreq)
+	_, err = dbc.Exec(context.Background(), sqlreq)
 
 	if err != nil {
 		return PostgreSQLRollbackIfError(err, false, dbc)
 	}
 
-	dbc.Exec("COMMIT")
+	dbc.Exec(context.Background(), "COMMIT")
 
 	return nil
 }

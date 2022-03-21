@@ -1,10 +1,10 @@
 // Package databases - реализует весь функционал необходимый для взаимодействия с базами данных
 package databases
 
-import "database/sql"
+import "github.com/jackc/pgx/v4/pgxpool"
 
 // PostgreSQLCreateTablesFinance - создаёт таблицы для схемы finance
-func PostgreSQLCreateTablesFinance(dbc *sql.DB) {
+func PostgreSQLCreateTablesFinance(dbc *pgxpool.Pool) {
 
 	// Рецепты и список покупок
 

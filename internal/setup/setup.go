@@ -19,8 +19,8 @@ import (
 
 // Список типовых ошибок
 var (
-	ErrDeleteInterrupted   = errors.New("Удаление базы данных, таблиц и ролей завершилось с ошибкой")
-	ErrCreationInterrupted = errors.New("Создание базы данных, таблиц и ролей завершилось с ошибкой")
+	ErrDeleteInterrupted   = errors.New("удаление базы данных, таблиц и ролей завершилось с ошибкой")
+	ErrCreationInterrupted = errors.New("создание базы данных, таблиц и ролей завершилось с ошибкой")
 )
 
 // ServerSettings - общие настройки сервера
@@ -100,20 +100,32 @@ func InitialSettings(initpar InitParams) {
 
 		AskString("Укажите пароль суперпользователя базы данных: ", &ServerSettings.SQL.Pass)
 
+		var UseSSL string
+		AskString("Использовать SSL для подключения к базе данных (Да или Нет): ", &UseSSL)
+
+		if UseSSL == "да" || UseSSL == "д" {
+			ServerSettings.SQL.SSL = true
+		} else {
+			ServerSettings.SQL.SSL = false
+		}
+
+		AskInt("Укажите максимальный размер пула соединений: ", &ServerSettings.SQL.MaxConnPool)
+
 		var CreateDB string
 		AskString("Создать базу данных с таблицами и ролями (Да или Нет): ", &CreateDB)
 		CreateDB = strings.ToLower(CreateDB)
 
 		if CreateDB == "да" || CreateDB == "д" {
-			if initpar.ResetRolesPass {
-				ServerSettings.SQL.AutoFillRoles()
-			}
-			err := StartCreateDatabase(initpar.CreateRoles)
+
+			// Создаём базу данных
+			ServerSettings.SQL.AutoFillRoles()
+			err := StartCreateDatabase()
 			if err == nil {
 				if initpar.CreateAdmin {
 					SetDefaultAdmin(initpar.AdminLogin, initpar.AdminPass, initpar.WebsiteURL)
 				}
 			}
+
 		}
 
 		WriteToJSON()
@@ -152,10 +164,9 @@ func InitialSettings(initpar InitParams) {
 
 		// Пересоздаём базу данных без перенастройки
 		if initpar.CreateDb {
-			if initpar.ResetRolesPass {
-				ServerSettings.SQL.AutoFillRoles()
-			}
-			err := StartCreateDatabase(initpar.CreateRoles)
+
+			ServerSettings.SQL.AutoFillRoles()
+			err := StartCreateDatabase()
 			if err == nil {
 				if initpar.CreateAdmin {
 					SetDefaultAdmin(initpar.AdminLogin, initpar.AdminPass, initpar.WebsiteURL)
@@ -230,12 +241,11 @@ func СheckExists(filename string) bool {
 
 // WriteToJSON - записывает объект настроек в JSON файл
 func WriteToJSON() {
-	bytes, err := json.Marshal(ServerSettings)
+	bytes, err := json.MarshalIndent(ServerSettings, "	", "	")
 
 	shared.WriteErrToLog(err)
 
 	setfile, err := os.Create("settings.json")
-	defer setfile.Close()
 
 	shared.WriteErrToLog(err)
 
@@ -288,9 +298,9 @@ func SetDefaultAdmin(login string, password string, websiteurl string) string {
 		}
 	}
 
-	dbc := ServerSettings.SQL.ConnectAsAdmin()
+	ServerSettings.SQL.Connect(false)
 
-	err := admin.CreateAdmin(&ServerSettings.SQL, LoginAdmin, Email, PasswordAdmin, ServerSettings.SMTP.Use, dbc)
+	err := admin.CreateAdmin(&ServerSettings.SQL, LoginAdmin, Email, PasswordAdmin, ServerSettings.SMTP.Use, ServerSettings.SQL.ConnPool)
 
 	shared.WriteErrToLog(err)
 
@@ -303,9 +313,7 @@ func SetDefaultAdmin(login string, password string, websiteurl string) string {
 			URI = websiteurl
 		}
 
-		messages.SendEmailConfirmationLetter(&ServerSettings.SQL, Email, URI, dbc)
-	} else {
-		defer dbc.Close()
+		messages.SendEmailConfirmationLetter(&ServerSettings.SQL, Email, URI, ServerSettings.SQL.ConnPool)
 	}
 
 	log.Println("Администратор сайта создан")
@@ -315,10 +323,10 @@ func SetDefaultAdmin(login string, password string, websiteurl string) string {
 }
 
 // StartCreateDatabase - запускает в фоне процесс создания базы данных
-func StartCreateDatabase(CreateRoles bool) error {
+func StartCreateDatabase() error {
 
 	donech := make(chan bool)
-	go ServerSettings.SQL.CreateDatabase(donech, CreateRoles)
+	go ServerSettings.SQL.CreateDatabase(donech)
 
 	if <-donech {
 		log.Println("Процедура создания базы данных завершена")

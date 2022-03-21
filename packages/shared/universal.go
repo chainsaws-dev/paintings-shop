@@ -20,7 +20,7 @@ var (
 	ErrHeadersFetchNotFilled  = errors.New("Не заполнены обязательные параметры запроса списка файлов: Page, Limit")
 	ErrFkeyViolation          = errors.New("Нельзя удалять записи, на которые имеются ссылки")
 	ErroNoRowsInResult        = errors.New("Не найдено ни одной записи для удаления")
-	ErrHeadersNotFilled       = errors.New("Не заполнены обязательные заголовки")
+	ErrHeadersNotFilled       = errors.New("Не заполнены обязательные заголовки запроса")
 )
 
 // CurrentPrefix - префикс URL

@@ -65,13 +65,6 @@ func Currencies(w http.ResponseWriter, req *http.Request) {
 			LimitStr := req.Header.Get("Limit")
 			ItemID := req.Header.Get("ItemID")
 
-			// Создаём соединение с базой данных с ролью пользователя
-			dbc := setup.ServerSettings.SQL.Connect(w, role)
-			if dbc == nil {
-				return
-			}
-			defer dbc.Close()
-
 			if PageStr == "" && LimitStr == "" {
 
 				if ItemID != "" {
@@ -84,7 +77,7 @@ func Currencies(w http.ResponseWriter, req *http.Request) {
 
 					var Currency databases.Currency
 
-					Currency, err = databases.PostgreSQLSingleCurrencySelect(ID, dbc)
+					Currency, err = databases.PostgreSQLSingleCurrencySelect(ID, setup.ServerSettings.SQL.ConnPool)
 
 					if err != nil {
 						if errors.Is(err, databases.ErrContryNotFound) {
@@ -120,7 +113,7 @@ func Currencies(w http.ResponseWriter, req *http.Request) {
 
 				var Currencies databases.CurrenciesResponse
 
-				Currencies, err = databases.PostgreSQLCurrenciesSelect(Page, Limit, dbc)
+				Currencies, err = databases.PostgreSQLCurrenciesSelect(Page, Limit, setup.ServerSettings.SQL.ConnPool)
 
 				if err != nil {
 					if errors.Is(err, databases.ErrLimitOffsetInvalid) {
@@ -159,14 +152,7 @@ func Currencies(w http.ResponseWriter, req *http.Request) {
 				return
 			}
 
-			// Создаём соединение с базой данных с ролью пользователя
-			dbc := setup.ServerSettings.SQL.Connect(w, role)
-			if dbc == nil {
-				return
-			}
-			defer dbc.Close()
-
-			CurInfo, err = databases.PostgreSQLCurrenciesChange(CurInfo, dbc)
+			CurInfo, err = databases.PostgreSQLCurrenciesChange(CurInfo, setup.ServerSettings.SQL.ConnPool)
 
 			if shared.HandleInternalServerError(w, err) {
 				return
@@ -192,14 +178,7 @@ func Currencies(w http.ResponseWriter, req *http.Request) {
 					return
 				}
 
-				// Создаём соединение с базой данных с ролью пользователя
-				dbc := setup.ServerSettings.SQL.Connect(w, role)
-				if dbc == nil {
-					return
-				}
-				defer dbc.Close()
-
-				err = databases.PostgreSQLCurrenciesDelete(ID, dbc)
+				err = databases.PostgreSQLCurrenciesDelete(ID, setup.ServerSettings.SQL.ConnPool)
 
 				if err != nil {
 					if errors.Is(databases.ErrNoDeleteIfLinksExist, err) {

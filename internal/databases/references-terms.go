@@ -2,12 +2,12 @@
 package databases
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"log"
 	"math"
 
-	_ "github.com/lib/pq" // Драйвер PostgreSQL
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 // PostgreSQLTermsSelect - получает список условий продажи
@@ -17,7 +17,7 @@ import (
 // page - номер страницы результата для вывода
 // limit - количество строк на странице
 //
-func PostgreSQLTermsSelect(page int, limit int, dbc *sql.DB) (TermsResponse, error) {
+func PostgreSQLTermsSelect(page int, limit int, dbc *pgxpool.Pool) (TermsResponse, error) {
 
 	var result TermsResponse
 	result.SaleTerms = TermsList{}
@@ -27,7 +27,7 @@ func PostgreSQLTermsSelect(page int, limit int, dbc *sql.DB) (TermsResponse, err
 			FROM 
 				"references".terms;`
 
-	row := dbc.QueryRow(sqlreq)
+	row := dbc.QueryRow(context.Background(), sqlreq)
 
 	var countRows int
 
@@ -65,7 +65,7 @@ func PostgreSQLTermsSelect(page int, limit int, dbc *sql.DB) (TermsResponse, err
 		return result, ErrLimitOffsetInvalid
 	}
 
-	rows, err := dbc.Query(sqlreq)
+	rows, err := dbc.Query(context.Background(), sqlreq)
 
 	if err != nil {
 		return result, err
@@ -102,7 +102,7 @@ func PostgreSQLTermsSelect(page int, limit int, dbc *sql.DB) (TermsResponse, err
 //
 // ID - номер условий в базе данных
 //
-func PostgreSQLSingleTermSelect(ID int, dbc *sql.DB) (Term, error) {
+func PostgreSQLSingleTermSelect(ID int, dbc *pgxpool.Pool) (Term, error) {
 
 	var result Term
 	result.Currency = Currency{}
@@ -114,7 +114,7 @@ func PostgreSQLSingleTermSelect(ID int, dbc *sql.DB) (Term, error) {
 			WHERE 
 				id=$1;`
 
-	row := dbc.QueryRow(sqlreq, ID)
+	row := dbc.QueryRow(context.Background(), sqlreq, ID)
 
 	var countRows int
 
@@ -152,7 +152,7 @@ func PostgreSQLSingleTermSelect(ID int, dbc *sql.DB) (Term, error) {
 					terms.id
 				LIMIT 1;`
 
-	row = dbc.QueryRow(sqlreq, ID)
+	row = dbc.QueryRow(context.Background(), sqlreq, ID)
 
 	var curr Currency
 
@@ -171,7 +171,7 @@ func PostgreSQLSingleTermSelect(ID int, dbc *sql.DB) (Term, error) {
 
 // PostgreSQLTermsChange - определяет существует ли данные условия и вызывает
 // INSERT или UPDATE в зависимости от результата проверки
-func PostgreSQLTermsChange(t Term, dbc *sql.DB) (Term, error) {
+func PostgreSQLTermsChange(t Term, dbc *pgxpool.Pool) (Term, error) {
 
 	found, t, err := PostgreSQLFindTerm(t, dbc)
 
@@ -189,7 +189,7 @@ func PostgreSQLTermsChange(t Term, dbc *sql.DB) (Term, error) {
 }
 
 // PostgreSQLFindTerm - ищет условия продажи по ID
-func PostgreSQLFindTerm(t Term, dbc *sql.DB) (bool, Term, error) {
+func PostgreSQLFindTerm(t Term, dbc *pgxpool.Pool) (bool, Term, error) {
 
 	sqlreq := `SELECT 
 					COUNT(*)
@@ -198,7 +198,7 @@ func PostgreSQLFindTerm(t Term, dbc *sql.DB) (bool, Term, error) {
 				WHERE 
 					id=$1;`
 
-	CountRow := dbc.QueryRow(sqlreq, t.ID)
+	CountRow := dbc.QueryRow(context.Background(), sqlreq, t.ID)
 
 	var ItemsCount int
 	err := CountRow.Scan(&ItemsCount)
@@ -216,15 +216,15 @@ func PostgreSQLFindTerm(t Term, dbc *sql.DB) (bool, Term, error) {
 }
 
 // PostgreSQLTermsInsert - добавляет новые условия продажи
-func PostgreSQLTermsInsert(t Term, dbc *sql.DB) (Term, error) {
+func PostgreSQLTermsInsert(t Term, dbc *pgxpool.Pool) (Term, error) {
 
-	dbc.Exec("BEGIN")
+	dbc.Exec(context.Background(), "BEGIN")
 
 	sqlreq := `INSERT INTO 
 						"references".terms(delivery_time, returns, delivery_cost, name, currency_id)
 						VALUES ($1, $2, $3, $4, $5) RETURNING id;`
 
-	row := dbc.QueryRow(sqlreq, t.DeliveryTime, t.Returns, t.DeliveryCost, t.Name, t.Currency.ID)
+	row := dbc.QueryRow(context.Background(), sqlreq, t.DeliveryTime, t.Returns, t.DeliveryCost, t.Name, t.Currency.ID)
 
 	var curid int
 	err := row.Scan(&curid)
@@ -237,39 +237,39 @@ func PostgreSQLTermsInsert(t Term, dbc *sql.DB) (Term, error) {
 
 	log.Printf("Данные о валюте сохранены в базу данных под индексом %v", curid)
 
-	dbc.Exec("COMMIT")
+	dbc.Exec(context.Background(), "COMMIT")
 
 	return t, nil
 }
 
 // PostgreSQLCurrenciesUpdate - обновляет существующего контрагента
-func PostgreSQLTermsUpdate(t Term, dbc *sql.DB) (Term, error) {
+func PostgreSQLTermsUpdate(t Term, dbc *pgxpool.Pool) (Term, error) {
 
-	dbc.Exec("BEGIN")
+	dbc.Exec(context.Background(), "BEGIN")
 
 	sqlreq := `UPDATE "references".terms		
 				SET (delivery_time, returns, delivery_cost, name, currency_id) = ($1, $2, $3, $4, $5)
 				WHERE id=$6;`
 
-	_, err := dbc.Exec(sqlreq, t.DeliveryTime, t.Returns, t.DeliveryCost, t.Name, t.Currency.ID, t.ID)
+	_, err := dbc.Exec(context.Background(), sqlreq, t.DeliveryTime, t.Returns, t.DeliveryCost, t.Name, t.Currency.ID, t.ID)
 
 	if err != nil {
 		return t, PostgreSQLRollbackIfError(err, false, dbc)
 	}
 
-	dbc.Exec("COMMIT")
+	dbc.Exec(context.Background(), "COMMIT")
 
 	return t, nil
 }
 
 // PostgreSQLCurrenciesDelete - удаляет валюту по номеру
-func PostgreSQLTermsDelete(ID int, dbc *sql.DB) error {
+func PostgreSQLTermsDelete(ID int, dbc *pgxpool.Pool) error {
 
-	dbc.Exec("BEGIN")
+	dbc.Exec(context.Background(), "BEGIN")
 
 	sqlreq := `DELETE FROM "references".terms WHERE id=$1;`
 
-	_, err := dbc.Exec(sqlreq, ID)
+	_, err := dbc.Exec(context.Background(), sqlreq, ID)
 
 	if err != nil {
 		return PostgreSQLRollbackIfError(err, false, dbc)
@@ -277,13 +277,13 @@ func PostgreSQLTermsDelete(ID int, dbc *sql.DB) error {
 
 	sqlreq = `select setval('"references"."terms_id_seq"',(select COALESCE(max("id"),1) from "references"."terms")::bigint);`
 
-	_, err = dbc.Exec(sqlreq)
+	_, err = dbc.Exec(context.Background(), sqlreq)
 
 	if err != nil {
 		return PostgreSQLRollbackIfError(err, false, dbc)
 	}
 
-	dbc.Exec("COMMIT")
+	dbc.Exec(context.Background(), "COMMIT")
 
 	return nil
 }

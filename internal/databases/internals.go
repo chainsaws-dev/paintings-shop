@@ -2,11 +2,13 @@
 package databases
 
 import (
-	"database/sql"
+	"context"
 	"errors"
 	"fmt"
 	"log"
 	"os"
+
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 // Список типовых ошибок
@@ -40,20 +42,27 @@ var (
 // PostgreSQLGetConnString - получаем строку соединения для PostgreSQL
 // При начальной настройке строка возвращается без базы данных (она создаётся в процессе)
 // При начальной настройке указывается пароль суперпользователя при штатной работе пароль соответствуещей роли
-func PostgreSQLGetConnString(Login string, Password string, Addr string, DbName string, initialsetup bool) string {
+func PostgreSQLGetConnString(Login string, Password string, Addr string, DbName string, initialsetup bool, SSLmode bool, MaxPoolConns int) string {
+	var strSSLmode string
 
-	if initialsetup {
-		return fmt.Sprintf("postgres://%v:%v@%v/?sslmode=disable", Login, Password, Addr)
+	if SSLmode {
+		strSSLmode = "enable"
+	} else {
+		strSSLmode = "disable"
 	}
 
-	return fmt.Sprintf("postgres://%v:%v@%v/%v?sslmode=disable", Login, Password, Addr, DbName)
+	if initialsetup {
+		return fmt.Sprintf("postgres://%v:%v@%v/?sslmode=%v&pool_max_conns=%v", Login, Password, Addr, strSSLmode, MaxPoolConns)
+	}
+
+	return fmt.Sprintf("postgres://%v:%v@%v/%v?sslmode=%v&pool_max_conns=%v", Login, Password, Addr, DbName, strSSLmode, MaxPoolConns)
 
 }
 
 // PostgreSQLRollbackIfError - откатываем изменения транзакции если происходит ошибка и пишем её в лог и выходим
-func PostgreSQLRollbackIfError(err error, critical bool, dbc *sql.DB) error {
+func PostgreSQLRollbackIfError(err error, critical bool, dbc *pgxpool.Pool) error {
 	if err != nil {
-		dbc.Exec("ROLLBACK")
+		dbc.Exec(context.Background(), "ROLLBACK")
 
 		if critical {
 			log.Fatalln(err)
@@ -67,29 +76,22 @@ func PostgreSQLRollbackIfError(err error, critical bool, dbc *sql.DB) error {
 	return nil
 }
 
-// PostgreSQLConnect - подключаемся к базе данных
-func PostgreSQLConnect(ConnectionString string) (dbc *sql.DB, err error) {
-	return SQLConnect("postgres", ConnectionString)
+// PostgreSQLConnect - подключаемся к базе данных (создаём пул соединений)
+func PostgreSQLConnect(ConnectionString string) (dbc *pgxpool.Pool) {
+	dbc, err := pgxpool.Connect(context.Background(), ConnectionString)
+	if err != nil {
+		log.Fatalln(err)
+		return nil
+	}
+	log.Println("Установлено соединение с СУБД")
+	return dbc
 }
 
-// SQLConnect - соединиться с базой данных и выполнить команду
-// Не забываем в точке вызова defer db.Close()
-func SQLConnect(DbType string, ConStr string) (*sql.DB, error) {
-
-	db, err := sql.Open(DbType, ConStr)
-
-	if err != nil {
-		return db, err
-	}
-
-	// Проверяем что база данных доступна
-	err = db.Ping()
-
-	if err != nil {
-		return db, err
-	}
-
-	return db, nil
+// PostgreSQLDisconnect - отключаемся от базы данных (убиваем пул соединений)
+func PostgreSQLDisconnect(dbc *pgxpool.Pool) {
+	dbc.Close()
+	dbc = nil
+	log.Println("Соединение с СУБД разорвано")
 }
 
 // PostgreSQLCheckLimitOffset - проверяем значение лимита и сдвига

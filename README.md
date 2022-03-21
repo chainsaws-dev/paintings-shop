@@ -1,6 +1,9 @@
-# Web server for paintings shop
-Web server made for storing data paintings and e-commerce based on GO.
+# Web server for recipes and shopping list
+Web server made for storing data on shopping lists and recipes based on GO.
+Made as easy to handle as possible.  
 (in development)
+
+Frontend source for this backend is available [here](https://github.com/chainsaws-dev/paintings-shop)
 
 ## Prerequisites
 Several ffmpeg libraries reqired:
@@ -19,17 +22,16 @@ PostgreSQL server installed and configured reqired:
 2. Install PostgreSQL
 `sudo apt-get update`
 `sudo apt -y install postgresql-13 postgresql-client-13`
-`sudo service postgresql start` or `pg_ctlcluster 12 main start`
+`sudo service postgresql start` or `pg_ctlcluster 13 main start`
 
 3. Change default password for postgres 
 `sudo su - postgres`
 `psql -c "alter user postgres with password 'new password'"`
 
-
 ## Getting source
 Run this command to get source code:
 
-`go get github.com/chainsaws-dev/shopping-lists-and-recipes-backend`
+`go get github.com/chainsaws-dev/paintings-shop-backend`
 
 ## Docs
 Run this command to start documentation server on localhost:6060:
@@ -65,6 +67,7 @@ To build in project root directory run the following:
 `go test -coverprofile c.out`
 `go tool cover -html=c.out`
 
+
 ## Docker-compose
 
 1. Create .env file with folowing contents:
@@ -78,3 +81,6 @@ WEB_URL=http://localhost:8080`
 `sudo docker-compose up --build -d` - to rebuild docker images and run database and webservice containers
 
 `sudo docker-compose down --volumes` - to stop database and webservice containers
+
+
+

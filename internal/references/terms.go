@@ -65,13 +65,6 @@ func Terms(w http.ResponseWriter, req *http.Request) {
 			LimitStr := req.Header.Get("Limit")
 			ItemID := req.Header.Get("ItemID")
 
-			// Создаём соединение с базой данных с ролью пользователя
-			dbc := setup.ServerSettings.SQL.Connect(w, role)
-			if dbc == nil {
-				return
-			}
-			defer dbc.Close()
-
 			if PageStr == "" && LimitStr == "" {
 
 				if ItemID != "" {
@@ -84,7 +77,7 @@ func Terms(w http.ResponseWriter, req *http.Request) {
 
 					var term databases.Term
 
-					term, err = databases.PostgreSQLSingleTermSelect(ID, dbc)
+					term, err = databases.PostgreSQLSingleTermSelect(ID, setup.ServerSettings.SQL.ConnPool)
 
 					if err != nil {
 						if errors.Is(err, databases.ErrTermNotFound) {
@@ -120,7 +113,7 @@ func Terms(w http.ResponseWriter, req *http.Request) {
 
 				var Terms databases.TermsResponse
 
-				Terms, err = databases.PostgreSQLTermsSelect(Page, Limit, dbc)
+				Terms, err = databases.PostgreSQLTermsSelect(Page, Limit, setup.ServerSettings.SQL.ConnPool)
 
 				if err != nil {
 					if errors.Is(err, databases.ErrLimitOffsetInvalid) {
@@ -160,14 +153,7 @@ func Terms(w http.ResponseWriter, req *http.Request) {
 				return
 			}
 
-			// Создаём соединение с базой данных с ролью пользователя
-			dbc := setup.ServerSettings.SQL.Connect(w, role)
-			if dbc == nil {
-				return
-			}
-			defer dbc.Close()
-
-			term, err = databases.PostgreSQLTermsChange(term, dbc)
+			term, err = databases.PostgreSQLTermsChange(term, setup.ServerSettings.SQL.ConnPool)
 
 			if shared.HandleInternalServerError(w, err) {
 				return
@@ -193,14 +179,7 @@ func Terms(w http.ResponseWriter, req *http.Request) {
 					return
 				}
 
-				// Создаём соединение с базой данных с ролью пользователя
-				dbc := setup.ServerSettings.SQL.Connect(w, role)
-				if dbc == nil {
-					return
-				}
-				defer dbc.Close()
-
-				err = databases.PostgreSQLTermsDelete(ID, dbc)
+				err = databases.PostgreSQLTermsDelete(ID, setup.ServerSettings.SQL.ConnPool)
 
 				if err != nil {
 					if errors.Is(databases.ErrNoDeleteIfLinksExist, err) {

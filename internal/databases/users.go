@@ -2,18 +2,17 @@
 package databases
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"math"
 	"paintings-shop/packages/shared"
 
+	"github.com/jackc/pgx/v4/pgxpool"
 	uuid "github.com/satori/go.uuid"
-
-	_ "github.com/lib/pq" // Драйвер PostgreSQL
 )
 
 // PostgreSQLUsersSelect - получает список пользователей в админке
-func PostgreSQLUsersSelect(page int, limit int, dbc *sql.DB) (UsersResponse, error) {
+func PostgreSQLUsersSelect(page int, limit int, dbc *pgxpool.Pool) (UsersResponse, error) {
 
 	var result UsersResponse
 	result.Users = Users{}
@@ -23,7 +22,7 @@ func PostgreSQLUsersSelect(page int, limit int, dbc *sql.DB) (UsersResponse, err
 			FROM 
 				secret.users;`
 
-	row := dbc.QueryRow(sqlreq)
+	row := dbc.QueryRow(context.Background(), sqlreq)
 
 	var countRows int
 
@@ -57,7 +56,7 @@ func PostgreSQLUsersSelect(page int, limit int, dbc *sql.DB) (UsersResponse, err
 		return result, ErrLimitOffsetInvalid
 	}
 
-	rows, err := dbc.Query(sqlreq)
+	rows, err := dbc.Query(context.Background(), sqlreq)
 
 	if err != nil {
 		return result, err
@@ -77,7 +76,7 @@ func PostgreSQLUsersSelect(page int, limit int, dbc *sql.DB) (UsersResponse, err
 }
 
 // PostgreSQLUsersInsertUpdate - создаёт или обновляет существующего пользователя
-func PostgreSQLUsersInsertUpdate(NewUserInfo User, Hash string, UpdatePassword bool, OverWrite bool, dbc *sql.DB) (User, error) {
+func PostgreSQLUsersInsertUpdate(NewUserInfo User, Hash string, UpdatePassword bool, OverWrite bool, dbc *pgxpool.Pool) (User, error) {
 
 	if NewUserInfo.Role == "admin_role_CRUD" {
 		NewUserInfo.IsAdmin = true
@@ -90,7 +89,7 @@ func PostgreSQLUsersInsertUpdate(NewUserInfo User, Hash string, UpdatePassword b
 
 	sqlreq := `SELECT COUNT(*) FROM secret.users WHERE email=$1;`
 
-	EmailCountRow := dbc.QueryRow(sqlreq, NewUserInfo.Email)
+	EmailCountRow := dbc.QueryRow(context.Background(), sqlreq, NewUserInfo.Email)
 
 	err := EmailCountRow.Scan(&EmailCount)
 
@@ -107,7 +106,7 @@ func PostgreSQLUsersInsertUpdate(NewUserInfo User, Hash string, UpdatePassword b
 
 	sqlreq = `SELECT COUNT(*) FROM secret.users WHERE id=$1;`
 
-	UserCountRow := dbc.QueryRow(sqlreq, NewUserInfo.GUID)
+	UserCountRow := dbc.QueryRow(context.Background(), sqlreq, NewUserInfo.GUID)
 
 	err = UserCountRow.Scan(&UserCount)
 
@@ -115,7 +114,7 @@ func PostgreSQLUsersInsertUpdate(NewUserInfo User, Hash string, UpdatePassword b
 		return NewUserInfo, err
 	}
 
-	dbc.Exec("BEGIN")
+	dbc.Exec(context.Background(), "BEGIN")
 
 	if UserCount > 0 && OverWrite {
 
@@ -123,7 +122,7 @@ func PostgreSQLUsersInsertUpdate(NewUserInfo User, Hash string, UpdatePassword b
 
 		sqlreq = `UPDATE secret.users SET (role, email, phone, name, isadmin, confirmed, disabled, totp_active) = ($1,$2,$3,$4,$5,$6,$7,$8) WHERE id=$9;`
 
-		_, err = dbc.Exec(sqlreq, NewUserInfo.Role, NewUserInfo.Email, NewUserInfo.Phone, NewUserInfo.Name,
+		_, err = dbc.Exec(context.Background(), sqlreq, NewUserInfo.Role, NewUserInfo.Email, NewUserInfo.Phone, NewUserInfo.Name,
 			NewUserInfo.IsAdmin, NewUserInfo.Confirmed, NewUserInfo.Disabled, NewUserInfo.SecondFactor, NewUserInfo.GUID)
 
 		if err != nil {
@@ -135,7 +134,7 @@ func PostgreSQLUsersInsertUpdate(NewUserInfo User, Hash string, UpdatePassword b
 
 				sqlreq = `UPDATE secret.hashes SET value=$2 WHERE user_id=$1;`
 
-				_, err = dbc.Exec(sqlreq, NewUserInfo.GUID, Hash)
+				_, err = dbc.Exec(context.Background(), sqlreq, NewUserInfo.GUID, Hash)
 
 				if err != nil {
 					return NewUserInfo, PostgreSQLRollbackIfError(err, false, dbc)
@@ -154,7 +153,7 @@ func PostgreSQLUsersInsertUpdate(NewUserInfo User, Hash string, UpdatePassword b
 
 		sqlreq = `INSERT INTO secret.users (id, role, email, phone, name, isadmin, confirmed, disabled, totp_active) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9);`
 
-		_, err = dbc.Exec(sqlreq, NewUserInfo.GUID, NewUserInfo.Role, NewUserInfo.Email, NewUserInfo.Phone,
+		_, err = dbc.Exec(context.Background(), sqlreq, NewUserInfo.GUID, NewUserInfo.Role, NewUserInfo.Email, NewUserInfo.Phone,
 			NewUserInfo.Name, NewUserInfo.IsAdmin, NewUserInfo.Confirmed, NewUserInfo.Disabled, NewUserInfo.SecondFactor)
 
 		if err != nil {
@@ -165,7 +164,7 @@ func PostgreSQLUsersInsertUpdate(NewUserInfo User, Hash string, UpdatePassword b
 
 			sqlreq = `INSERT INTO secret.hashes (user_id, value) VALUES ($1,$2);`
 
-			_, err = dbc.Exec(sqlreq, NewUserInfo.GUID, Hash)
+			_, err = dbc.Exec(context.Background(), sqlreq, NewUserInfo.GUID, Hash)
 
 			if err != nil {
 				return NewUserInfo, PostgreSQLRollbackIfError(err, false, dbc)
@@ -176,13 +175,13 @@ func PostgreSQLUsersInsertUpdate(NewUserInfo User, Hash string, UpdatePassword b
 
 	}
 
-	dbc.Exec("COMMIT")
+	dbc.Exec(context.Background(), "COMMIT")
 
 	return NewUserInfo, nil
 }
 
 // PostgreSQLUsersDelete - удаляет пользователя с указанным GUID
-func PostgreSQLUsersDelete(UserID uuid.UUID, dbc *sql.DB) error {
+func PostgreSQLUsersDelete(UserID uuid.UUID, dbc *pgxpool.Pool) error {
 
 	sqlreq := `SELECT 
 				COUNT(*)
@@ -191,7 +190,7 @@ func PostgreSQLUsersDelete(UserID uuid.UUID, dbc *sql.DB) error {
 			WHERE 
 				id=$1;`
 
-	row := dbc.QueryRow(sqlreq, UserID)
+	row := dbc.QueryRow(context.Background(), sqlreq, UserID)
 
 	var usercount int
 	err := row.Scan(&usercount)
@@ -202,12 +201,12 @@ func PostgreSQLUsersDelete(UserID uuid.UUID, dbc *sql.DB) error {
 		return ErrUserNotFound
 	}
 
-	dbc.Exec("BEGIN")
+	dbc.Exec(context.Background(), "BEGIN")
 
 	// Удаляем связанные хеши
 	sqlreq = `DELETE FROM secret.hashes WHERE user_id=$1;`
 
-	_, err = dbc.Exec(sqlreq, UserID)
+	_, err = dbc.Exec(context.Background(), sqlreq, UserID)
 
 	if err != nil {
 		return PostgreSQLRollbackIfError(err, false, dbc)
@@ -216,7 +215,7 @@ func PostgreSQLUsersDelete(UserID uuid.UUID, dbc *sql.DB) error {
 	// Удаляем подтверждения почты
 	sqlreq = `DELETE FROM secret.confirmations WHERE user_id=$1;`
 
-	_, err = dbc.Exec(sqlreq, UserID)
+	_, err = dbc.Exec(context.Background(), sqlreq, UserID)
 
 	if err != nil {
 		return PostgreSQLRollbackIfError(err, false, dbc)
@@ -225,7 +224,7 @@ func PostgreSQLUsersDelete(UserID uuid.UUID, dbc *sql.DB) error {
 	// Удаляем сбросы паролей
 	sqlreq = `DELETE FROM secret.password_resets WHERE user_id=$1;`
 
-	_, err = dbc.Exec(sqlreq, UserID)
+	_, err = dbc.Exec(context.Background(), sqlreq, UserID)
 
 	if err != nil {
 		return PostgreSQLRollbackIfError(err, false, dbc)
@@ -234,7 +233,7 @@ func PostgreSQLUsersDelete(UserID uuid.UUID, dbc *sql.DB) error {
 	// Удаляем привязки временных ключей
 	sqlreq = `DELETE FROM secret.totp WHERE user_id=$1;`
 
-	_, err = dbc.Exec(sqlreq, UserID)
+	_, err = dbc.Exec(context.Background(), sqlreq, UserID)
 
 	if err != nil {
 		return PostgreSQLRollbackIfError(err, false, dbc)
@@ -243,23 +242,23 @@ func PostgreSQLUsersDelete(UserID uuid.UUID, dbc *sql.DB) error {
 	// Удаляем пользователя
 	sqlreq = `DELETE FROM secret.users WHERE id=$1;`
 
-	_, err = dbc.Exec(sqlreq, UserID)
+	_, err = dbc.Exec(context.Background(), sqlreq, UserID)
 
 	if err != nil {
 		return PostgreSQLRollbackIfError(err, false, dbc)
 	}
 
-	dbc.Exec("COMMIT")
+	dbc.Exec(context.Background(), "COMMIT")
 
 	return nil
 }
 
 // PostgreSQLCheckUserMailExists - проверяет что почтовый ящик живого пользователя
-func PostgreSQLCheckUserMailExists(Email string, dbc *sql.DB) (bool, error) {
+func PostgreSQLCheckUserMailExists(Email string, dbc *pgxpool.Pool) (bool, error) {
 
 	sqlreq := `SELECT COUNT(*) FROM secret.users WHERE email=$1;`
 
-	row := dbc.QueryRow(sqlreq, Email)
+	row := dbc.QueryRow(context.Background(), sqlreq, Email)
 
 	var UsersCount int
 
@@ -277,7 +276,7 @@ func PostgreSQLCheckUserMailExists(Email string, dbc *sql.DB) (bool, error) {
 }
 
 // PostgreSQLGetUserByEmail - получает данные о пользователе по электронной почте
-func PostgreSQLGetUserByEmail(Email string, dbc *sql.DB) (User, error) {
+func PostgreSQLGetUserByEmail(Email string, dbc *pgxpool.Pool) (User, error) {
 
 	var result User
 
@@ -290,7 +289,7 @@ func PostgreSQLGetUserByEmail(Email string, dbc *sql.DB) (User, error) {
 				WHERE 
 					users.email=$1;`
 
-		row := dbc.QueryRow(sqlreq, Email)
+		row := dbc.QueryRow(context.Background(), sqlreq, Email)
 
 		var countRows int
 
@@ -318,7 +317,7 @@ func PostgreSQLGetUserByEmail(Email string, dbc *sql.DB) (User, error) {
 							users.email=$1
 						LIMIT 1`
 
-			rows, err := dbc.Query(sqlreq, Email)
+			rows, err := dbc.Query(context.Background(), sqlreq, Email)
 
 			if err != nil {
 				return result, err
@@ -347,14 +346,14 @@ func PostgreSQLGetUserByEmail(Email string, dbc *sql.DB) (User, error) {
 }
 
 // PostgreSQLCurrentUserUpdate - функция позволяющая менять поля, которые пользователь может менять
-func PostgreSQLCurrentUserUpdate(NewUserInfo User, Hash string, UpdatePassword bool, dbc *sql.DB) (User, error) {
+func PostgreSQLCurrentUserUpdate(NewUserInfo User, Hash string, UpdatePassword bool, dbc *pgxpool.Pool) (User, error) {
 
 	// Проверяем что пользователь с ID существует
 	var UserCount int
 
 	sqlreq := `SELECT COUNT(*) FROM secret.users WHERE id=$1;`
 
-	UserCountRow := dbc.QueryRow(sqlreq, NewUserInfo.GUID)
+	UserCountRow := dbc.QueryRow(context.Background(), sqlreq, NewUserInfo.GUID)
 
 	err := UserCountRow.Scan(&UserCount)
 
@@ -362,13 +361,13 @@ func PostgreSQLCurrentUserUpdate(NewUserInfo User, Hash string, UpdatePassword b
 		return NewUserInfo, err
 	}
 
-	dbc.Exec("BEGIN")
+	dbc.Exec(context.Background(), "BEGIN")
 
 	if UserCount > 0 {
 		// Обновляем существующего
 		sqlreq = `UPDATE secret.users SET (phone, name) = ($1,$2) WHERE id=$3;`
 
-		_, err = dbc.Exec(sqlreq, NewUserInfo.Phone, NewUserInfo.Name, NewUserInfo.GUID)
+		_, err = dbc.Exec(context.Background(), sqlreq, NewUserInfo.Phone, NewUserInfo.Name, NewUserInfo.GUID)
 
 		if err != nil {
 			return NewUserInfo, PostgreSQLRollbackIfError(err, false, dbc)
@@ -379,7 +378,7 @@ func PostgreSQLCurrentUserUpdate(NewUserInfo User, Hash string, UpdatePassword b
 
 				sqlreq = `UPDATE secret.hashes SET value=$2 WHERE user_id=$1;`
 
-				_, err = dbc.Exec(sqlreq, NewUserInfo.GUID, Hash)
+				_, err = dbc.Exec(context.Background(), sqlreq, NewUserInfo.GUID, Hash)
 
 				if err != nil {
 					return NewUserInfo, PostgreSQLRollbackIfError(err, false, dbc)
@@ -392,7 +391,7 @@ func PostgreSQLCurrentUserUpdate(NewUserInfo User, Hash string, UpdatePassword b
 		return NewUserInfo, ErrNoUserWithEmail
 	}
 
-	dbc.Exec("COMMIT")
+	dbc.Exec(context.Background(), "COMMIT")
 
 	return NewUserInfo, nil
 }

@@ -2,13 +2,9 @@
 package settings
 
 import (
-	"database/sql"
 	"errors"
 	"log"
-	"net/http"
 	"paintings-shop/internal/databases"
-	"paintings-shop/packages/randompassword"
-	"paintings-shop/packages/shared"
 )
 
 // Список типовых ошибок
@@ -27,9 +23,6 @@ func (SQLsrv *SQLServer) AutoFillRoles() {
 	SQLsrv.Roles = append(SQLsrv.Roles, SQLRole{
 		Name:    "guest_role_read_only",
 		Desc:    "Гостевая роль",
-		Login:   "paintings_shop_guest",
-		Pass:    randompassword.NewRandomPassword(20),
-		TRules:  GetTRulesForGuest(),
 		Default: true,
 		Admin:   false,
 	})
@@ -37,9 +30,6 @@ func (SQLsrv *SQLServer) AutoFillRoles() {
 	SQLsrv.Roles = append(SQLsrv.Roles, SQLRole{
 		Name:    "admin_role_CRUD",
 		Desc:    "Администратор",
-		Login:   "paintings_shop_admin",
-		Pass:    randompassword.NewRandomPassword(20),
-		TRules:  GetTRulesForAdmin(),
 		Default: false,
 		Admin:   true,
 	})
@@ -49,22 +39,11 @@ func (SQLsrv *SQLServer) AutoFillRoles() {
 func (SQLsrv *SQLServer) DropDatabase(donech chan bool) {
 	switch {
 	case SQLsrv.Type == "PostgreSQL":
+		// Подключаемся без контекста базы данных
+		SQLsrv.Connect(true)
+
 		// Удаляем базу данных
-
-		dbc, err := databases.PostgreSQLConnect(databases.PostgreSQLGetConnString(SQLsrv.Login, SQLsrv.Pass, SQLsrv.Addr, "", true))
-		if err != nil {
-			log.Fatalln(err)
-		}
-
-		databases.PostgreSQLDropDatabase(SQLsrv.DbName, dbc)
-
-		for _, currole := range SQLsrv.Roles {
-
-			databases.PostgreSQLDropRole(currole.Login, dbc)
-		}
-
-		dbc.Close()
-
+		databases.PostgreSQLDropDatabase(SQLsrv.DbName, SQLsrv.ConnPool)
 		donech <- true
 
 	default:
@@ -73,26 +52,21 @@ func (SQLsrv *SQLServer) DropDatabase(donech chan bool) {
 }
 
 // CreateDatabase - Создаёт базу данных если её нет
-func (SQLsrv *SQLServer) CreateDatabase(donech chan bool, CreateRoles bool) {
+func (SQLsrv *SQLServer) CreateDatabase(donech chan bool) {
 	switch {
 	case SQLsrv.Type == "PostgreSQL":
+
+		// Подключаемся без контекста базы данных
+		SQLsrv.Connect(true)
+
 		// Создаём базу данных
-		cs := databases.PostgreSQLGetConnString(SQLsrv.Login, SQLsrv.Pass, SQLsrv.Addr, "", true)
-		dbc, err := databases.PostgreSQLConnect(cs)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		databases.PostgreSQLCreateDatabase(SQLsrv.DbName, dbc)
-		dbc.Close()
+		databases.PostgreSQLCreateDatabase(SQLsrv.DbName, SQLsrv.ConnPool)
+
+		// Подключаемся под базу данных
+		SQLsrv.Connect(false)
 
 		// Заполняем базу данных
-		cs = databases.PostgreSQLGetConnString(SQLsrv.Login, SQLsrv.Pass, SQLsrv.Addr, SQLsrv.DbName, false)
-		dbc, err = databases.PostgreSQLConnect(cs)
-		if err != nil {
-			log.Fatalln(err)
-		}
-
-		err = databases.PostgreSQLCreateTables(dbc)
+		err := databases.PostgreSQLCreateTables(SQLsrv.ConnPool)
 
 		if err != nil {
 			if errors.Is(databases.ErrTablesAlreadyExist, err) {
@@ -107,21 +81,7 @@ func (SQLsrv *SQLServer) CreateDatabase(donech chan bool, CreateRoles bool) {
 			FileType: "jpg",
 			FileID:   "",
 		}
-		databases.PostgreSQLFileChange(placeholder, dbc)
-
-		if CreateRoles {
-			for _, currole := range SQLsrv.Roles {
-
-				databases.PostgreSQLCreateRole(currole.Login, currole.Pass, SQLsrv.DbName, dbc)
-
-				for _, tablerule := range currole.TRules {
-
-					databases.PostgreSQLGrantRightsToRole(currole.Login, tablerule.TName, formRightsArray(tablerule), dbc)
-				}
-			}
-		}
-
-		dbc.Close()
+		databases.PostgreSQLFileChange(placeholder, SQLsrv.ConnPool)
 
 		donech <- true
 
@@ -141,127 +101,54 @@ func FindRoleInRoles(RoleName string, Roles SQLRoles) (SQLRole, error) {
 }
 
 // GetConnectionString - Формируем строку соединения
-func GetConnectionString(SQLsrv *SQLServer, Role string) (string, error) {
-
-	ActiveRole, err := FindRoleInRoles(Role, SQLsrv.Roles)
-
-	if err != nil {
-		return "", err
-	}
+func GetConnectionString(SQLsrv *SQLServer, Init bool) string {
 
 	return databases.PostgreSQLGetConnString(
-		ActiveRole.Login,
-		ActiveRole.Pass,
+		SQLsrv.Login,
+		SQLsrv.Pass,
 		SQLsrv.Addr,
 		SQLsrv.DbName,
-		false), nil
+		Init, SQLsrv.SSL, SQLsrv.MaxConnPool)
 }
 
-// Connect - открывает соединение с базой данных Postgresql
-func (SQLsrv *SQLServer) Connect(w http.ResponseWriter, role string) *sql.DB {
+// Connect - открывает соединение с базой данных
+func (SQLsrv *SQLServer) Connect(Init bool) {
 
 	switch {
 	case SQLsrv.Type == "PostgreSQL":
-		cs, err := GetConnectionString(SQLsrv, role)
 
-		if shared.HandleOtherError(w, "Роль не найдена", err, http.StatusServiceUnavailable) {
-			return nil
+		if SQLsrv.Connected {
+			SQLsrv.Disconnect()
 		}
 
-		dbc, err := databases.PostgreSQLConnect(cs)
+		SQLsrv.ConnPool = databases.PostgreSQLConnect(GetConnectionString(SQLsrv, Init))
 
-		if shared.HandleOtherError(w, "База данных недоступна", err, http.StatusServiceUnavailable) {
-			return nil
+		if SQLsrv.ConnPool == nil {
+			SQLsrv.Connected = false
+		} else {
+			SQLsrv.Connected = true
 		}
 
-		return dbc
+	default:
+		log.Fatalln("Указан неподдерживаемый тип базы данных " + SQLsrv.Type)
+		SQLsrv.ConnPool = nil
+	}
+
+}
+
+// Disconnect - разрывает соединение с базой данных
+func (SQLsrv *SQLServer) Disconnect() {
+	switch {
+	case SQLsrv.Type == "PostgreSQL":
+
+		databases.PostgreSQLDisconnect(SQLsrv.ConnPool)
+		SQLsrv.Connected = false
 
 	default:
 		log.Fatalln("Указан неподдерживаемый тип базы данных " + SQLsrv.Type)
 	}
 
-	return nil
-}
-
-// ConnectAsAdmin - подключаемся к базе с ролью администратора
-func (SQLsrv *SQLServer) ConnectAsAdmin() *sql.DB {
-	switch {
-	case SQLsrv.Type == "PostgreSQL":
-		cs, err := GetConnectionString(SQLsrv, "admin_role_CRUD")
-
-		if err != nil {
-			log.Println(err)
-			return nil
-		}
-
-		dbc, err := databases.PostgreSQLConnect(cs)
-
-		if err != nil {
-			log.Println(err)
-			return nil
-		}
-
-		return dbc
-
-	default:
-		log.Fatalln("Указан неподдерживаемый тип базы данных " + SQLsrv.Type)
-	}
-
-	return nil
-}
-
-// ConnectAsGuest - подключаемся к базе с ролью гостя
-func (SQLsrv *SQLServer) ConnectAsGuest() *sql.DB {
-	switch {
-	case SQLsrv.Type == "PostgreSQL":
-		cs, err := GetConnectionString(SQLsrv, "guest_role_read_only")
-
-		if err != nil {
-			log.Println(err)
-			return nil
-		}
-
-		dbc, err := databases.PostgreSQLConnect(cs)
-
-		if err != nil {
-			log.Println(err)
-			return nil
-		}
-
-		return dbc
-
-	default:
-		log.Fatalln("Указан неподдерживаемый тип базы данных " + SQLsrv.Type)
-	}
-
-	return nil
-}
-
-// formRightsArray - формирует массив прав для таблицы
-func formRightsArray(rule TRule) []string {
-	var result []string
-
-	if rule.SELECT {
-		result = append(result, "SELECT")
-	}
-
-	if rule.INSERT {
-		result = append(result, "INSERT")
-	}
-
-	if rule.UPDATE {
-		result = append(result, "UPDATE")
-	}
-
-	if rule.DELETE {
-		result = append(result, "DELETE")
-	}
-
-	if rule.REFERENCES {
-		result = append(result, "REFERENCES")
-	}
-
-	return result
+	SQLsrv.ConnPool = nil
 }
 
 // CheckRoleForRead - проверяет роль для разрешения доступа к разделу системы

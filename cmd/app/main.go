@@ -1,13 +1,16 @@
-// Package main - Сервер магазина по продаже картин
+// Package main - Сервер книги рецептов и списка покупок
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+
 	"paintings-shop/internal/references"
 	"paintings-shop/internal/setup"
 	"paintings-shop/packages/files"
@@ -15,7 +18,12 @@ import (
 	"paintings-shop/packages/secondfactor"
 	"paintings-shop/packages/shared"
 	"paintings-shop/packages/signinupout"
+
 	"strings"
+	"syscall"
+	"time"
+
+	"github.com/gorilla/mux"
 )
 
 // Список типовых ошибок
@@ -48,6 +56,90 @@ func main() {
 	// Иначе просто читаем данные из файла settings.json
 	setup.InitialSettings(initpar)
 
+	if initpar.CleanTokens {
+		go signinupout.RegularConfirmTokensCleanup()
+	}
+
+	// Создаём пул соединений c СУБД
+	if setup.ServerSettings.SQL.Connected == false {
+		setup.ServerSettings.SQL.Connect(false)
+	}
+
+	ServerSetup()
+}
+
+func ServerSetup() {
+
+	InitFrontendHandlers()
+
+	http.Handle("/api/v1/", InitAPIHandlersV1())
+
+	srv := &http.Server{
+		Addr: "0.0.0.0:8080",
+		// Хорошая практика устанавливать таймауты для избежания атак Slowloris
+		WriteTimeout: time.Second * 15,
+		ReadTimeout:  time.Second * 15,
+		IdleTimeout:  time.Second * 60,
+		Handler:      gzipwrap.MakeGzipHandler(http.DefaultServeMux),
+	}
+
+	// Запускаем сервер в отдельной горутине, чтобы он не блокировал исполнение
+	go func() {
+		// Запускаем либо http либо https сервер, в зависимости от наличия сертификата в папке с сервером
+		if setup.СheckExists("cert.pem") && setup.СheckExists("key.pem") {
+			//go run $(go env GOROOT)/src/crypto/tls/generate_cert.go --host=localhost
+			shared.CurrentPrefix = "https://"
+			log.Println("Запущен SSL веб сервер")
+			srv.Addr = fmt.Sprintf(":%v", setup.ServerSettings.HTTPS)
+
+			err := srv.ListenAndServeTLS("cert.pem", "key.pem")
+
+			if !errors.Is(err, http.ErrServerClosed) {
+				setup.ServerSettings.SQL.Disconnect()
+				log.Fatalln(err)
+			}
+
+		} else {
+			shared.CurrentPrefix = "http://"
+			log.Println("Запущен веб сервер без шифрования")
+			srv.Addr = fmt.Sprintf(":%v", setup.ServerSettings.HTTP)
+			err := srv.ListenAndServe()
+
+			if !errors.Is(err, http.ErrServerClosed) {
+				setup.ServerSettings.SQL.Disconnect()
+				log.Fatalln(err)
+			}
+		}
+	}()
+
+	c := make(chan os.Signal, 1)
+	// Завершение работы сервера вызывается только по сигналу SIGINT (Ctrl+C)
+	// SIGKILL, SIGQUIT or SIGTERM (Ctrl+/) не будут обработаны.
+	signal.Notify(c, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
+	// Блокируем выполнение до получения сигнала
+	<-c
+
+	// Создаём срок ожидания завершения
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	defer cancel()
+
+	err := srv.Shutdown(ctx)
+
+	if err != nil {
+		log.Println(err)
+	}
+
+	setup.ServerSettings.SQL.Disconnect()
+
+	log.Println("Завершение работы сервера...")
+
+	os.Exit(0)
+}
+
+// InitFrontendHandlers - инициализирует сервер по умолчанию для раздачи фронтенда и файлов
+func InitFrontendHandlers() {
+
 	// Устанавливаем пути, по которым будут происходить http запросы
 
 	// Раздаём файл сервером фронтенд и загрузки
@@ -63,56 +155,49 @@ func main() {
 	http.HandleFunc("/reset-password/", RedirectToIndex)
 	http.HandleFunc("/profile/", RedirectToIndex)
 	http.HandleFunc("/totp/", RedirectToIndex)
+}
+
+// InitHandlers - инициализирует guerilla mux handler
+func InitAPIHandlersV1() http.Handler {
+
+	r := mux.NewRouter()
+
+	// Устанавливаем пути, по которым будут происходить http запросы
 
 	// REST API
 
 	// Файлы
-	http.HandleFunc("/api/Files", files.HandleFiles)
+	r.HandleFunc("/api/v1/Files", files.HandleFiles).Methods("GET", "POST", "DELETE")
 
 	// Авторизация и регистрация
-	http.HandleFunc("/api/Accounts/SignUp", signinupout.SignUp)
-	http.HandleFunc("/api/Accounts/SignIn", signinupout.SignIn)
+	r.HandleFunc("/api/v1/Accounts/SignUp", signinupout.SignUp).Methods("POST")
+	r.HandleFunc("/api/v1/Accounts/SignIn", signinupout.SignIn).Methods("POST")
 
 	// Второй фактор
-	http.HandleFunc("/api/TOTP/Check", secondfactor.CheckSecondFactor)
-	http.HandleFunc("/api/TOTP/Settings", secondfactor.SecondFactor)
-	http.HandleFunc("/api/TOTP/Qr.png", secondfactor.GetQRCode)
+	r.HandleFunc("/api/v1/TOTP/Check", secondfactor.CheckSecondFactor).Methods("POST")
+	r.HandleFunc("/api/v1/TOTP/Settings", secondfactor.SecondFactor).Methods("GET", "POST", "DELETE")
+	r.HandleFunc("/api/v1/TOTP/Qr.png", secondfactor.GetQRCode).Methods("GET")
 
 	// Админка
-	http.HandleFunc("/api/Users", signinupout.HandleUsers)
-	http.HandleFunc("/api/Users/Current", signinupout.CurrentUser)
-	http.HandleFunc("/api/Sessions", signinupout.HandleSessions)
+	r.HandleFunc("/api/v1/Users", signinupout.HandleUsers).Methods("GET", "POST", "DELETE")
+	r.HandleFunc("/api/v1/Users/Current", signinupout.CurrentUser).Methods("GET", "POST")
+	r.HandleFunc("/api/v1/Sessions", signinupout.HandleSessions).Methods("GET", "DELETE")
 
 	// Сервис
-	http.HandleFunc("/api/ConfirmEmail", signinupout.ConfirmEmail)
-	http.HandleFunc("/api/ConfirmEmail/Send", signinupout.ResendEmail)
-	http.HandleFunc("/api/PasswordReset", signinupout.ResetPassword)
-	http.HandleFunc("/api/PasswordReset/Send", signinupout.RequestResetEmail)
+	r.HandleFunc("/api/v1/ConfirmEmail", signinupout.ConfirmEmail).Methods("POST")
+	r.HandleFunc("/api/v1/ConfirmEmail/Send", signinupout.ResendEmail).Methods("POST")
+	r.HandleFunc("/api/v1/PasswordReset", signinupout.ResetPassword).Methods("POST")
+	r.HandleFunc("/api/v1/PasswordReset/Send", signinupout.RequestResetEmail).Methods("POST")
 
 	// Справочники
-	http.HandleFunc("/api/References/Countries", references.Countries)
-	http.HandleFunc("/api/References/Currencies", references.Currencies)
-	http.HandleFunc("/api/References/Terms", references.Terms)
-	http.HandleFunc("/api/References/Authors", references.Authors)
-	http.HandleFunc("/api/References/ArtworkTypes", references.ArtworkTypes)
-	http.HandleFunc("/api/References/Addresses", references.Addresses)
+	r.HandleFunc("/api/v1/References/Countries", references.Countries).Methods("GET", "POST", "DELETE")
+	r.HandleFunc("/api/v1/References/Currencies", references.Currencies).Methods("GET", "POST", "DELETE")
+	r.HandleFunc("/api/v1/References/Terms", references.Terms).Methods("GET", "POST", "DELETE")
+	r.HandleFunc("/api/v1/References/Authors", references.Authors).Methods("GET", "POST", "DELETE")
+	r.HandleFunc("/api/v1/References/ArtworkTypes", references.ArtworkTypes).Methods("GET", "POST", "DELETE")
+	r.HandleFunc("/api/v1/References/Addresses", references.Addresses).Methods("GET", "POST", "DELETE")
 
-	if initpar.CleanTokens {
-		go signinupout.RegularConfirmTokensCleanup()
-	}
-
-	// Запускаем либо http либо https сервер, в зависимости от наличия сертификата в папке с сервером
-	if setup.СheckExists("cert.pem") && setup.СheckExists("key.pem") {
-		//go run $(go env GOROOT)/src/crypto/tls/generate_cert.go --host=localhost
-		shared.CurrentPrefix = "https://"
-		log.Println("Запущен SSL веб сервер")
-		log.Fatalln(http.ListenAndServeTLS(fmt.Sprintf(":%v", setup.ServerSettings.HTTPS), "cert.pem", "key.pem", gzipwrap.MakeGzipHandler(http.DefaultServeMux)))
-	} else {
-		shared.CurrentPrefix = "http://"
-		log.Println("Запущен веб сервер без шифрования")
-		log.Fatalln(http.ListenAndServe(fmt.Sprintf(":%v", setup.ServerSettings.HTTP), gzipwrap.MakeGzipHandler(http.DefaultServeMux)))
-	}
-
+	return r
 }
 
 // RedirectToIndex - перенаправляет на файл index.html
@@ -128,9 +213,7 @@ func GetRunArgs() setup.InitParams {
 
 	// Инкапсулируем параметры установки в объекте
 	var initpar setup.InitParams
-	initpar.CreateRoles = true
 	initpar.CreateAdmin = true
-	initpar.ResetRolesPass = true
 
 	if len(runargs) > 1 {
 		for _, runarg := range runargs {
@@ -165,32 +248,11 @@ func GetRunArgs() setup.InitParams {
 				initpar.CreateAdmin = false
 			}
 
-			// Работает при -makedb (только для отладки)
-			// Отключает создание ролей в базе
-			if runarg == "-noroles" {
-				initpar.CreateRoles = false
-			}
-
-			// Для пакетного режима
-			// Работает при -makedb
-			// Не выполняет перезаполнение ролей в объекте при выполнении начальной настройки
-			if runarg == "-noresetroles" {
-				initpar.ResetRolesPass = false
-			}
-
 			// Для пакетного режима
 			// Работает при -makedb
 			// Позволяет передать логин и пароль начального администратора через параметры командной строки
 			if strings.HasPrefix(runarg, "-admincred:") {
-				basestring := strings.ReplaceAll(runarg, "-admincred:", "")
-				lp := strings.Split(basestring, "@@")
-
-				if len(lp) == 2 {
-					initpar.AdminLogin = lp[0]
-					initpar.AdminPass = lp[1]
-				} else {
-					shared.WriteErrToLog(ErrWrongArgumentFormat)
-				}
+				SetAdminCredentials(runarg, &initpar)
 			}
 
 			// Для пакетного режима
@@ -199,6 +261,7 @@ func GetRunArgs() setup.InitParams {
 			if strings.HasPrefix(runarg, "-url:") {
 				initpar.WebsiteURL = strings.ReplaceAll(runarg, "-url:", "")
 			}
+
 		}
 	}
 

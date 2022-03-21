@@ -2,12 +2,12 @@
 package databases
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"log"
 	"math"
 
-	_ "github.com/lib/pq" // Драйвер PostgreSQL
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 // PostgreSQLArtworkTypesSelect - получает список типов картин
@@ -17,7 +17,7 @@ import (
 // page - номер страницы результата для вывода
 // limit - количество строк на странице
 //
-func PostgreSQLArtworkTypesSelect(page int, limit int, dbc *sql.DB) (ArtworkTypesResponse, error) {
+func PostgreSQLArtworkTypesSelect(page int, limit int, dbc *pgxpool.Pool) (ArtworkTypesResponse, error) {
 
 	var result ArtworkTypesResponse
 	result.ArtTypes = ArtworkTypesList{}
@@ -27,7 +27,7 @@ func PostgreSQLArtworkTypesSelect(page int, limit int, dbc *sql.DB) (ArtworkType
 			FROM 
 				"references".artwork_types;`
 
-	row := dbc.QueryRow(sqlreq)
+	row := dbc.QueryRow(context.Background(), sqlreq)
 
 	var countRows int
 
@@ -53,7 +53,7 @@ func PostgreSQLArtworkTypesSelect(page int, limit int, dbc *sql.DB) (ArtworkType
 		return result, ErrLimitOffsetInvalid
 	}
 
-	rows, err := dbc.Query(sqlreq)
+	rows, err := dbc.Query(context.Background(), sqlreq)
 
 	if err != nil {
 		return result, err
@@ -85,7 +85,7 @@ func PostgreSQLArtworkTypesSelect(page int, limit int, dbc *sql.DB) (ArtworkType
 //
 // ID - номер валюты в базе данных
 //
-func PostgreSQLSingleArtworkTypeSelect(ID int, dbc *sql.DB) (ArtworkType, error) {
+func PostgreSQLSingleArtworkTypeSelect(ID int, dbc *pgxpool.Pool) (ArtworkType, error) {
 
 	var result ArtworkType
 
@@ -96,7 +96,7 @@ func PostgreSQLSingleArtworkTypeSelect(ID int, dbc *sql.DB) (ArtworkType, error)
 			WHERE 
 				id=$1;`
 
-	row := dbc.QueryRow(sqlreq, ID)
+	row := dbc.QueryRow(context.Background(), sqlreq, ID)
 
 	var countRows int
 
@@ -122,7 +122,7 @@ func PostgreSQLSingleArtworkTypeSelect(ID int, dbc *sql.DB) (ArtworkType, error)
 					id
 				LIMIT 1;`
 
-	row = dbc.QueryRow(sqlreq, ID)
+	row = dbc.QueryRow(context.Background(), sqlreq, ID)
 
 	err = row.Scan(&result.ID, &result.Name, &result.EngName)
 
@@ -135,7 +135,7 @@ func PostgreSQLSingleArtworkTypeSelect(ID int, dbc *sql.DB) (ArtworkType, error)
 
 // PostgreSQLArtworkTypeChange - определяет существует ли данный тип картин и вызывает
 // INSERT или UPDATE в зависимости от результата проверки
-func PostgreSQLArtworkTypeChange(cp ArtworkType, dbc *sql.DB) (ArtworkType, error) {
+func PostgreSQLArtworkTypeChange(cp ArtworkType, dbc *pgxpool.Pool) (ArtworkType, error) {
 
 	found, cp, err := PostgreSQLFindArtworkType(cp, dbc)
 
@@ -153,7 +153,7 @@ func PostgreSQLArtworkTypeChange(cp ArtworkType, dbc *sql.DB) (ArtworkType, erro
 }
 
 // PostgreSQLFindArtworkType - ищет тип картин по ID
-func PostgreSQLFindArtworkType(cp ArtworkType, dbc *sql.DB) (bool, ArtworkType, error) {
+func PostgreSQLFindArtworkType(cp ArtworkType, dbc *pgxpool.Pool) (bool, ArtworkType, error) {
 
 	sqlreq := `SELECT 
 					COUNT(*)
@@ -162,7 +162,7 @@ func PostgreSQLFindArtworkType(cp ArtworkType, dbc *sql.DB) (bool, ArtworkType, 
 				WHERE 
 					id=$1;`
 
-	CountRow := dbc.QueryRow(sqlreq, cp.ID)
+	CountRow := dbc.QueryRow(context.Background(), sqlreq, cp.ID)
 
 	var ItemsCount int
 	err := CountRow.Scan(&ItemsCount)
@@ -180,15 +180,15 @@ func PostgreSQLFindArtworkType(cp ArtworkType, dbc *sql.DB) (bool, ArtworkType, 
 }
 
 // PostgreSQLCurrenciesInsert - добавляет новую валюту
-func PostgreSQLArtworkTypesInsert(cp ArtworkType, dbc *sql.DB) (ArtworkType, error) {
+func PostgreSQLArtworkTypesInsert(cp ArtworkType, dbc *pgxpool.Pool) (ArtworkType, error) {
 
-	dbc.Exec("BEGIN")
+	dbc.Exec(context.Background(), "BEGIN")
 
 	sqlreq := `INSERT INTO 
 						"references".artwork_types(name, eng_name)
 						VALUES ($1, $2) RETURNING id;`
 
-	row := dbc.QueryRow(sqlreq, cp.Name, cp.EngName)
+	row := dbc.QueryRow(context.Background(), sqlreq, cp.Name, cp.EngName)
 
 	var curid int
 	err := row.Scan(&curid)
@@ -201,39 +201,39 @@ func PostgreSQLArtworkTypesInsert(cp ArtworkType, dbc *sql.DB) (ArtworkType, err
 
 	log.Printf("Данные о типе картины сохранены в базу данных под индексом %v", curid)
 
-	dbc.Exec("COMMIT")
+	dbc.Exec(context.Background(), "COMMIT")
 
 	return cp, nil
 }
 
 // PostgreSQLCurrenciesUpdate - обновляет существующего контрагента
-func PostgreSQLArtworkTypesUpdate(cp ArtworkType, dbc *sql.DB) (ArtworkType, error) {
+func PostgreSQLArtworkTypesUpdate(cp ArtworkType, dbc *pgxpool.Pool) (ArtworkType, error) {
 
-	dbc.Exec("BEGIN")
+	dbc.Exec(context.Background(), "BEGIN")
 
 	sqlreq := `UPDATE "references".artwork_types		
 				SET (name, eng_name) = ($1, $2)
 				WHERE id=$3;`
 
-	_, err := dbc.Exec(sqlreq, cp.Name, cp.EngName, cp.ID)
+	_, err := dbc.Exec(context.Background(), sqlreq, cp.Name, cp.EngName, cp.ID)
 
 	if err != nil {
 		return cp, PostgreSQLRollbackIfError(err, false, dbc)
 	}
 
-	dbc.Exec("COMMIT")
+	dbc.Exec(context.Background(), "COMMIT")
 
 	return cp, nil
 }
 
 // PostgreSQLCurrenciesDelete - удаляет валюту по номеру
-func PostgreSQLArtworkTypesDelete(ID int, dbc *sql.DB) error {
+func PostgreSQLArtworkTypesDelete(ID int, dbc *pgxpool.Pool) error {
 
-	dbc.Exec("BEGIN")
+	dbc.Exec(context.Background(), "BEGIN")
 
 	sqlreq := `DELETE FROM "references".artwork_types WHERE id=$1;`
 
-	_, err := dbc.Exec(sqlreq, ID)
+	_, err := dbc.Exec(context.Background(), sqlreq, ID)
 
 	if err != nil {
 		return PostgreSQLRollbackIfError(err, false, dbc)
@@ -241,13 +241,13 @@ func PostgreSQLArtworkTypesDelete(ID int, dbc *sql.DB) error {
 
 	sqlreq = `select setval('"references"."artwork_types_id_seq"',(select COALESCE(max("id"),1) from "references"."artwork_types")::bigint);`
 
-	_, err = dbc.Exec(sqlreq)
+	_, err = dbc.Exec(context.Background(), sqlreq)
 
 	if err != nil {
 		return PostgreSQLRollbackIfError(err, false, dbc)
 	}
 
-	dbc.Exec("COMMIT")
+	dbc.Exec(context.Background(), "COMMIT")
 
 	return nil
 }

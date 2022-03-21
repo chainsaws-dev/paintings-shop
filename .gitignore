@@ -3,7 +3,7 @@ cert.pem
 key.pem
 public/uploads/*
 logs/*
-shopping-lists-and-recipes
+paintings-shop
 __debug_bin
 postgres-data
 .env

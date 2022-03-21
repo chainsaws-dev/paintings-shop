@@ -2,12 +2,12 @@
 package databases
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"log"
 	"math"
 
-	_ "github.com/lib/pq" // Драйвер PostgreSQL
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 // PostgreSQLCountriesSelect - получает список стран
@@ -17,7 +17,7 @@ import (
 // page - номер страницы результата для вывода
 // limit - количество строк на странице
 //
-func PostgreSQLCountriesSelect(page int, limit int, dbc *sql.DB) (CountriesResponse, error) {
+func PostgreSQLCountriesSelect(page int, limit int, dbc *pgxpool.Pool) (CountriesResponse, error) {
 
 	var result CountriesResponse
 	result.Countries = CountriesList{}
@@ -27,7 +27,7 @@ func PostgreSQLCountriesSelect(page int, limit int, dbc *sql.DB) (CountriesRespo
 			FROM 
 				"references".countries;`
 
-	row := dbc.QueryRow(sqlreq)
+	row := dbc.QueryRow(context.Background(), sqlreq)
 
 	var countRows int
 
@@ -59,7 +59,7 @@ func PostgreSQLCountriesSelect(page int, limit int, dbc *sql.DB) (CountriesRespo
 		return result, ErrLimitOffsetInvalid
 	}
 
-	rows, err := dbc.Query(sqlreq)
+	rows, err := dbc.Query(context.Background(), sqlreq)
 
 	if err != nil {
 		return result, err
@@ -92,7 +92,7 @@ func PostgreSQLCountriesSelect(page int, limit int, dbc *sql.DB) (CountriesRespo
 //
 // ID - номер страны в базе данных
 //
-func PostgreSQLSingleCountrySelect(ID int, dbc *sql.DB) (Country, error) {
+func PostgreSQLSingleCountrySelect(ID int, dbc *pgxpool.Pool) (Country, error) {
 
 	var result Country
 
@@ -103,7 +103,7 @@ func PostgreSQLSingleCountrySelect(ID int, dbc *sql.DB) (Country, error) {
 			WHERE 
 				id=$1;`
 
-	row := dbc.QueryRow(sqlreq, ID)
+	row := dbc.QueryRow(context.Background(), sqlreq, ID)
 
 	var countRows int
 
@@ -135,7 +135,7 @@ func PostgreSQLSingleCountrySelect(ID int, dbc *sql.DB) (Country, error) {
 					id
 				LIMIT 1;`
 
-	row = dbc.QueryRow(sqlreq, ID)
+	row = dbc.QueryRow(context.Background(), sqlreq, ID)
 
 	err = row.Scan(&result.ID, &result.Name, &result.FullName,
 		&result.English, &result.Alpha2, &result.Alpha3,
@@ -150,7 +150,7 @@ func PostgreSQLSingleCountrySelect(ID int, dbc *sql.DB) (Country, error) {
 
 // PostgreSQLCountriesChange - определяет существует ли данная страна и вызывает
 // INSERT или UPDATE в зависимости от результата проверки
-func PostgreSQLCountriesChange(cp Country, dbc *sql.DB) (Country, error) {
+func PostgreSQLCountriesChange(cp Country, dbc *pgxpool.Pool) (Country, error) {
 
 	found, cp, err := PostgreSQLFindCountry(cp, dbc)
 
@@ -168,7 +168,7 @@ func PostgreSQLCountriesChange(cp Country, dbc *sql.DB) (Country, error) {
 }
 
 // PostgreSQLFindCountry - ищет страну по ID
-func PostgreSQLFindCountry(cp Country, dbc *sql.DB) (bool, Country, error) {
+func PostgreSQLFindCountry(cp Country, dbc *pgxpool.Pool) (bool, Country, error) {
 
 	sqlreq := `SELECT 
 					COUNT(*)
@@ -177,7 +177,7 @@ func PostgreSQLFindCountry(cp Country, dbc *sql.DB) (bool, Country, error) {
 				WHERE 
 					id=$1;`
 
-	CountRow := dbc.QueryRow(sqlreq, cp.ID)
+	CountRow := dbc.QueryRow(context.Background(), sqlreq, cp.ID)
 
 	var ItemsCount int
 	err := CountRow.Scan(&ItemsCount)
@@ -195,15 +195,15 @@ func PostgreSQLFindCountry(cp Country, dbc *sql.DB) (bool, Country, error) {
 }
 
 // PostgreSQLCountriesInsert - добавляет новую страну
-func PostgreSQLCountriesInsert(cp Country, dbc *sql.DB) (Country, error) {
+func PostgreSQLCountriesInsert(cp Country, dbc *pgxpool.Pool) (Country, error) {
 
-	dbc.Exec("BEGIN")
+	dbc.Exec(context.Background(), "BEGIN")
 
 	sqlreq := `INSERT INTO 
 						"references".countries(name, full_name, english, alpha_2, alpha_3, iso, location, location_precise)
 						VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id;`
 
-	row := dbc.QueryRow(sqlreq, cp.Name, cp.FullName, cp.English,
+	row := dbc.QueryRow(context.Background(), sqlreq, cp.Name, cp.FullName, cp.English,
 		cp.Alpha2, cp.Alpha3, cp.ISO, cp.Location, cp.LocationPrecise)
 
 	var curid int
@@ -217,21 +217,21 @@ func PostgreSQLCountriesInsert(cp Country, dbc *sql.DB) (Country, error) {
 
 	log.Printf("Данные о стране сохранены в базу данных под индексом %v", curid)
 
-	dbc.Exec("COMMIT")
+	dbc.Exec(context.Background(), "COMMIT")
 
 	return cp, nil
 }
 
 // PostgreSQLCountriesUpdate - обновляет существующую страну
-func PostgreSQLCountriesUpdate(cp Country, dbc *sql.DB) (Country, error) {
+func PostgreSQLCountriesUpdate(cp Country, dbc *pgxpool.Pool) (Country, error) {
 
-	dbc.Exec("BEGIN")
+	dbc.Exec(context.Background(), "BEGIN")
 
 	sqlreq := `UPDATE "references".countries		
 				SET (name, full_name, english, alpha_2, alpha_3, iso, location, location_precise) = ($1, $2, $3, $4, $5, $6, $7, $8)
 				WHERE id=$9;`
 
-	_, err := dbc.Exec(sqlreq, cp.Name, cp.FullName, cp.English,
+	_, err := dbc.Exec(context.Background(), sqlreq, cp.Name, cp.FullName, cp.English,
 		cp.Alpha2, cp.Alpha3, cp.ISO,
 		cp.Location, cp.LocationPrecise, cp.ID)
 
@@ -239,19 +239,19 @@ func PostgreSQLCountriesUpdate(cp Country, dbc *sql.DB) (Country, error) {
 		return cp, PostgreSQLRollbackIfError(err, false, dbc)
 	}
 
-	dbc.Exec("COMMIT")
+	dbc.Exec(context.Background(), "COMMIT")
 
 	return cp, nil
 }
 
 // PostgreSQLCountriesDelete - удаляет страну по номеру
-func PostgreSQLCountriesDelete(ID int, dbc *sql.DB) error {
+func PostgreSQLCountriesDelete(ID int, dbc *pgxpool.Pool) error {
 
-	dbc.Exec("BEGIN")
+	dbc.Exec(context.Background(), "BEGIN")
 
 	sqlreq := `DELETE FROM "references".countries WHERE id=$1;`
 
-	_, err := dbc.Exec(sqlreq, ID)
+	_, err := dbc.Exec(context.Background(), sqlreq, ID)
 
 	if err != nil {
 		return PostgreSQLRollbackIfError(err, false, dbc)
@@ -259,13 +259,13 @@ func PostgreSQLCountriesDelete(ID int, dbc *sql.DB) error {
 
 	sqlreq = `select setval('"references"."countries_id_seq"',(select COALESCE(max("id"),1) from "references"."countries")::bigint);`
 
-	_, err = dbc.Exec(sqlreq)
+	_, err = dbc.Exec(context.Background(), sqlreq)
 
 	if err != nil {
 		return PostgreSQLRollbackIfError(err, false, dbc)
 	}
 
-	dbc.Exec("COMMIT")
+	dbc.Exec(context.Background(), "COMMIT")
 
 	return nil
 }

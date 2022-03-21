@@ -2,12 +2,12 @@
 package databases
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"log"
 	"math"
 
-	_ "github.com/lib/pq" // Драйвер PostgreSQL
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 // PostgreSQLAddressesSelect - получает список адресов
@@ -17,7 +17,7 @@ import (
 // page - номер страницы результата для вывода
 // limit - количество строк на странице
 //
-func PostgreSQLAddressesSelect(page int, limit int, dbc *sql.DB) (AddressesResponse, error) {
+func PostgreSQLAddressesSelect(page int, limit int, dbc *pgxpool.Pool) (AddressesResponse, error) {
 
 	var result AddressesResponse
 	result.Addresses = AddressesList{}
@@ -27,7 +27,7 @@ func PostgreSQLAddressesSelect(page int, limit int, dbc *sql.DB) (AddressesRespo
 			FROM 
 				"references".addresses;`
 
-	row := dbc.QueryRow(sqlreq)
+	row := dbc.QueryRow(context.Background(), sqlreq)
 
 	var countRows int
 
@@ -68,7 +68,7 @@ func PostgreSQLAddressesSelect(page int, limit int, dbc *sql.DB) (AddressesRespo
 		return result, ErrLimitOffsetInvalid
 	}
 
-	rows, err := dbc.Query(sqlreq)
+	rows, err := dbc.Query(context.Background(), sqlreq)
 
 	if err != nil {
 		return result, err
@@ -107,7 +107,7 @@ func PostgreSQLAddressesSelect(page int, limit int, dbc *sql.DB) (AddressesRespo
 //
 // ID - номер валюты в базе данных
 //
-func PostgreSQLSingleAddressSelect(ID int, dbc *sql.DB) (Address, error) {
+func PostgreSQLSingleAddressSelect(ID int, dbc *pgxpool.Pool) (Address, error) {
 
 	var result Address
 
@@ -118,7 +118,7 @@ func PostgreSQLSingleAddressSelect(ID int, dbc *sql.DB) (Address, error) {
 			WHERE 
 				id=$1;`
 
-	row := dbc.QueryRow(sqlreq, ID)
+	row := dbc.QueryRow(context.Background(), sqlreq, ID)
 
 	var countRows int
 
@@ -159,7 +159,7 @@ func PostgreSQLSingleAddressSelect(ID int, dbc *sql.DB) (Address, error) {
 					addresses.id
 				LIMIT 1;`
 
-	row = dbc.QueryRow(sqlreq, ID)
+	row = dbc.QueryRow(context.Background(), sqlreq, ID)
 
 	var c Country
 
@@ -179,7 +179,7 @@ func PostgreSQLSingleAddressSelect(ID int, dbc *sql.DB) (Address, error) {
 
 // PostgreSQLCurrenciesChange - определяет существует ли данный адрес и вызывает
 // INSERT или UPDATE в зависимости от результата проверки
-func PostgreSQLAddressChange(cp Address, dbc *sql.DB) (Address, error) {
+func PostgreSQLAddressChange(cp Address, dbc *pgxpool.Pool) (Address, error) {
 
 	found, cp, err := PostgreSQLFindAddress(cp, dbc)
 
@@ -197,7 +197,7 @@ func PostgreSQLAddressChange(cp Address, dbc *sql.DB) (Address, error) {
 }
 
 // PostgreSQLFindAddress - ищет адрес по ID
-func PostgreSQLFindAddress(cp Address, dbc *sql.DB) (bool, Address, error) {
+func PostgreSQLFindAddress(cp Address, dbc *pgxpool.Pool) (bool, Address, error) {
 
 	sqlreq := `SELECT 
 					COUNT(*)
@@ -206,7 +206,7 @@ func PostgreSQLFindAddress(cp Address, dbc *sql.DB) (bool, Address, error) {
 				WHERE 
 					id=$1;`
 
-	CountRow := dbc.QueryRow(sqlreq, cp.ID)
+	CountRow := dbc.QueryRow(context.Background(), sqlreq, cp.ID)
 
 	var ItemsCount int
 	err := CountRow.Scan(&ItemsCount)
@@ -224,15 +224,15 @@ func PostgreSQLFindAddress(cp Address, dbc *sql.DB) (bool, Address, error) {
 }
 
 // PostgreSQLAddressesInsert - добавляет новый адрес
-func PostgreSQLAddressesInsert(cp Address, dbc *sql.DB) (Address, error) {
+func PostgreSQLAddressesInsert(cp Address, dbc *pgxpool.Pool) (Address, error) {
 
-	dbc.Exec("BEGIN")
+	dbc.Exec(context.Background(), "BEGIN")
 
 	sqlreq := `INSERT INTO 
 						"references".addresses(index, country_id, city, district, street, name)
 						VALUES ($1, $2, $3, $4, $5, $6) RETURNING id;`
 
-	row := dbc.QueryRow(sqlreq, cp.Index, cp.Country.ID, cp.City, cp.District, cp.Street, cp.Name)
+	row := dbc.QueryRow(context.Background(), sqlreq, cp.Index, cp.Country.ID, cp.City, cp.District, cp.Street, cp.Name)
 
 	var curid int
 	err := row.Scan(&curid)
@@ -245,39 +245,39 @@ func PostgreSQLAddressesInsert(cp Address, dbc *sql.DB) (Address, error) {
 
 	log.Printf("Данные о адресе сохранены в базу данных под индексом %v", curid)
 
-	dbc.Exec("COMMIT")
+	dbc.Exec(context.Background(), "COMMIT")
 
 	return cp, nil
 }
 
 // PostgreSQLCurrenciesUpdate - обновляет существующего контрагента
-func PostgreSQLAddressesUpdate(cp Address, dbc *sql.DB) (Address, error) {
+func PostgreSQLAddressesUpdate(cp Address, dbc *pgxpool.Pool) (Address, error) {
 
-	dbc.Exec("BEGIN")
+	dbc.Exec(context.Background(), "BEGIN")
 
 	sqlreq := `UPDATE "references".addresses		
 				SET (index, country_id, city, district, street, name) = ($1, $2, $3, $4, $5, $6)
 				WHERE id=$6;`
 
-	_, err := dbc.Exec(sqlreq, cp.Index, cp.Country.ID, cp.City, cp.District, cp.Street, cp.Name, cp.ID)
+	_, err := dbc.Exec(context.Background(), sqlreq, cp.Index, cp.Country.ID, cp.City, cp.District, cp.Street, cp.Name, cp.ID)
 
 	if err != nil {
 		return cp, PostgreSQLRollbackIfError(err, false, dbc)
 	}
 
-	dbc.Exec("COMMIT")
+	dbc.Exec(context.Background(), "COMMIT")
 
 	return cp, nil
 }
 
 // PostgreSQLCurrenciesDelete - удаляет валюту по номеру
-func PostgreSQLAddressesDelete(ID int, dbc *sql.DB) error {
+func PostgreSQLAddressesDelete(ID int, dbc *pgxpool.Pool) error {
 
-	dbc.Exec("BEGIN")
+	dbc.Exec(context.Background(), "BEGIN")
 
 	sqlreq := `DELETE FROM "references".addresses WHERE id=$1;`
 
-	_, err := dbc.Exec(sqlreq, ID)
+	_, err := dbc.Exec(context.Background(), sqlreq, ID)
 
 	if err != nil {
 		return PostgreSQLRollbackIfError(err, false, dbc)
@@ -285,13 +285,13 @@ func PostgreSQLAddressesDelete(ID int, dbc *sql.DB) error {
 
 	sqlreq = `select setval('"references"."addresses_id_seq"',(select COALESCE(max("id"),1) from "references"."addresses")::bigint);`
 
-	_, err = dbc.Exec(sqlreq)
+	_, err = dbc.Exec(context.Background(), sqlreq)
 
 	if err != nil {
 		return PostgreSQLRollbackIfError(err, false, dbc)
 	}
 
-	dbc.Exec("COMMIT")
+	dbc.Exec(context.Background(), "COMMIT")
 
 	return nil
 }

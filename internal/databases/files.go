@@ -2,19 +2,19 @@
 package databases
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"log"
 	"math"
 	"os"
 	"strings"
 
-	_ "github.com/lib/pq" // Драйвер PostgreSQL
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 // PostgreSQLFileChange - определяет существует ли такой же файл в базе
 // и изменяет или создаёт новый в зависимости от результата проверки
-func PostgreSQLFileChange(f File, dbc *sql.DB) (int, error) {
+func PostgreSQLFileChange(f File, dbc *pgxpool.Pool) (int, error) {
 
 	sqlreq := `SELECT 
 					COUNT(*)
@@ -23,7 +23,7 @@ func PostgreSQLFileChange(f File, dbc *sql.DB) (int, error) {
 				WHERE 
 					file_id=$1`
 
-	row := dbc.QueryRow(sqlreq, f.FileID)
+	row := dbc.QueryRow(context.Background(), sqlreq, f.FileID)
 
 	var CountRows int
 	err := row.Scan(&CountRows)
@@ -45,9 +45,9 @@ func PostgreSQLFileChange(f File, dbc *sql.DB) (int, error) {
 //
 // f - тип файл, содержащий данные о файле (имя, размер, тип, имя на сервере)
 //
-func PostgreSQLFileInsert(f File, dbc *sql.DB) (int, error) {
+func PostgreSQLFileInsert(f File, dbc *pgxpool.Pool) (int, error) {
 
-	dbc.Exec("BEGIN")
+	dbc.Exec(context.Background(), "BEGIN")
 
 	sqlreq := `INSERT INTO 
 			"references".files
@@ -55,7 +55,7 @@ func PostgreSQLFileInsert(f File, dbc *sql.DB) (int, error) {
 		  VALUES 
 			($1, $2, $3, $4, $5) RETURNING id;`
 
-	row := dbc.QueryRow(sqlreq, f.FileName, f.FileSize, f.FileType, f.FileID, f.PreviewID)
+	row := dbc.QueryRow(context.Background(), sqlreq, f.FileName, f.FileSize, f.FileType, f.FileID, f.PreviewID)
 
 	var curid int
 	err := row.Scan(&curid)
@@ -66,7 +66,7 @@ func PostgreSQLFileInsert(f File, dbc *sql.DB) (int, error) {
 
 	log.Printf("Данные о файле сохранены в базу данных под индексом %v", curid)
 
-	dbc.Exec("COMMIT")
+	dbc.Exec(context.Background(), "COMMIT")
 
 	return curid, nil
 }
@@ -77,7 +77,7 @@ func PostgreSQLFileInsert(f File, dbc *sql.DB) (int, error) {
 //
 // f - тип файл, содержащий данные о файле (имя, размер, тип, имя на сервере)
 //
-func PostgreSQLFileUpdate(f File, dbc *sql.DB) (int, error) {
+func PostgreSQLFileUpdate(f File, dbc *pgxpool.Pool) (int, error) {
 
 	sqlreq := `SELECT 
 					id
@@ -86,7 +86,7 @@ func PostgreSQLFileUpdate(f File, dbc *sql.DB) (int, error) {
 				WHERE 
 					file_id=$1`
 
-	row := dbc.QueryRow(sqlreq, f.FileID)
+	row := dbc.QueryRow(context.Background(), sqlreq, f.FileID)
 
 	var DbID int
 	err := row.Scan(&DbID)
@@ -97,7 +97,7 @@ func PostgreSQLFileUpdate(f File, dbc *sql.DB) (int, error) {
 
 	f.ID = DbID
 
-	dbc.Exec("BEGIN")
+	dbc.Exec(context.Background(), "BEGIN")
 
 	sqlreq = `UPDATE 
 				"references".files
@@ -105,25 +105,25 @@ func PostgreSQLFileUpdate(f File, dbc *sql.DB) (int, error) {
 				WHERE
 					file_id=$4;`
 
-	_, err = dbc.Exec(sqlreq, f.FileName, f.FileSize, f.FileType, f.FileID, f.PreviewID)
+	_, err = dbc.Exec(context.Background(), sqlreq, f.FileName, f.FileSize, f.FileType, f.FileID, f.PreviewID)
 
 	if err != nil {
 		return f.ID, PostgreSQLRollbackIfError(err, false, dbc)
 	}
 
-	dbc.Exec("COMMIT")
+	dbc.Exec(context.Background(), "COMMIT")
 
 	return f.ID, nil
 }
 
 // PostgreSQLFileDelete - удаляет запись в базе данных о загруженном файле
-func PostgreSQLFileDelete(fileid int, dbc *sql.DB) error {
+func PostgreSQLFileDelete(fileid int, dbc *pgxpool.Pool) error {
 
 	if fileid == 1 {
 		return ErrFirstNotDelete
 	}
 
-	dbc.Exec("BEGIN")
+	dbc.Exec(context.Background(), "BEGIN")
 
 	sqlreq := `SELECT 
 				file_id,
@@ -132,7 +132,7 @@ func PostgreSQLFileDelete(fileid int, dbc *sql.DB) error {
 				"references".files
 			WHERE id=$1;`
 
-	row := dbc.QueryRow(sqlreq, fileid)
+	row := dbc.QueryRow(context.Background(), sqlreq, fileid)
 
 	var filename string
 	var previewname string
@@ -148,7 +148,7 @@ func PostgreSQLFileDelete(fileid int, dbc *sql.DB) error {
 				"references".files
 			WHERE id=$1;`
 
-	_, err = dbc.Exec(sqlreq, fileid)
+	_, err = dbc.Exec(context.Background(), sqlreq, fileid)
 
 	if err != nil {
 		return PostgreSQLRollbackIfError(err, false, dbc)
@@ -157,7 +157,7 @@ func PostgreSQLFileDelete(fileid int, dbc *sql.DB) error {
 	// Освбождаем нумерацию таблицы
 	sqlreq = `select setval('"references"."files_id_seq"',(select COALESCE(max("id"),1) from "references"."files")::bigint);`
 
-	_, err = dbc.Exec(sqlreq)
+	_, err = dbc.Exec(context.Background(), sqlreq)
 
 	if err != nil {
 		return PostgreSQLRollbackIfError(err, false, dbc)
@@ -174,7 +174,7 @@ func PostgreSQLFileDelete(fileid int, dbc *sql.DB) error {
 		return PostgreSQLRollbackIfError(err, false, dbc)
 	}
 
-	dbc.Exec("COMMIT")
+	dbc.Exec(context.Background(), "COMMIT")
 
 	return nil
 }
@@ -204,7 +204,7 @@ func DeleteFileFromDisk(filename string) error {
 // page - номер страницы результата для вывода
 // limit - количество строк на странице
 //
-func PostgreSQLFilesSelect(page int, limit int, dbc *sql.DB) (FilesResponse, error) {
+func PostgreSQLFilesSelect(page int, limit int, dbc *pgxpool.Pool) (FilesResponse, error) {
 
 	var result FilesResponse
 	result.Files = FilesList{}
@@ -216,7 +216,7 @@ func PostgreSQLFilesSelect(page int, limit int, dbc *sql.DB) (FilesResponse, err
 			WHERE
 				id<>1;`
 
-	row := dbc.QueryRow(sqlreq)
+	row := dbc.QueryRow(context.Background(), sqlreq)
 
 	var countRows int
 
@@ -250,7 +250,7 @@ func PostgreSQLFilesSelect(page int, limit int, dbc *sql.DB) (FilesResponse, err
 		return result, ErrLimitOffsetInvalid
 	}
 
-	rows, err := dbc.Query(sqlreq)
+	rows, err := dbc.Query(context.Background(), sqlreq)
 
 	if err != nil {
 		return result, err
