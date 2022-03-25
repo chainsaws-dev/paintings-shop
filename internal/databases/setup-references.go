@@ -418,7 +418,7 @@ func PostgreSQLCreateTablesReferences(dbc *pgxpool.Pool) {
 		NamedCreateStatement{
 			TableName: "currencies fill",
 			CreateStatement: `INSERT INTO 
-			"references".currencies(rus_name, eng_name, iso_lat_3, iso_dig, symbol)
+			"references".currencies(eng_name, rus_name, iso_lat_3, iso_dig, symbol)
 			VALUES
 			('Russian Ruble', 'РОССИЙСКИЙ РУБЛЬ', 'RUB', '643', '₽'),
 			('Euro', 'ЕВРО', 'EUR', '978', '€'),

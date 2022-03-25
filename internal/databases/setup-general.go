@@ -17,6 +17,7 @@ import (
 var Schemas = []string{
 	`public`,
 	`secret`,
+	`"references"`,
 }
 
 // PostgreSQLCreateTables - Создаём таблицы в базе данных
@@ -35,13 +36,17 @@ func PostgreSQLCreateTables(dbc *pgxpool.Pool, locale string) error {
 
 	log.Println("Создаём таблицы ...")
 
-	log.Println("\tДля схемы public ...")
-	// Создание таблиц для списка покупок и рецептов
-	PostgreSQLCreateTablesPublic(dbc)
-
 	log.Println("\tДля схемы secret ...")
 	// Создание таблиц для авторизации и админки
 	PostgreSQLCreateTablesSecret(dbc)
+
+	log.Println("\tДля схемы references ...")
+	// Создание таблиц для авторизации и админки
+	PostgreSQLCreateTablesReferences(dbc)
+
+	log.Println("\tДля схемы public ...")
+	// Создание таблиц для списка покупок и рецептов
+	PostgreSQLCreateTablesPublic(dbc)
 
 	// Фиксация транзакции
 	dbc.Exec(context.Background(), "COMMIT")

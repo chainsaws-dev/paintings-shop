@@ -155,6 +155,18 @@ func (SQLsrv *SQLServer) Disconnect() {
 func (ss WServerSettings) CheckRoleForRead(RoleName string, AppPart string) bool {
 
 	switch {
+	case AppPart == "Countries":
+		return ss.CheckExistingRole(RoleName)
+	case AppPart == "Addresses":
+		return ss.CheckExistingRole(RoleName)
+	case AppPart == "ArtworkTypes":
+		return ss.CheckExistingRole(RoleName)
+	case AppPart == "Authors":
+		return ss.CheckExistingRole(RoleName)
+	case AppPart == "Currencies":
+		return ss.CheckExistingRole(RoleName)
+	case AppPart == "Terms":
+		return ss.CheckExistingRole(RoleName)
 	case AppPart == "CurrentUser":
 		return ss.CheckExistingRole(RoleName)
 	case AppPart == "CheckSecondFactor":
@@ -162,12 +174,6 @@ func (ss WServerSettings) CheckRoleForRead(RoleName string, AppPart string) bool
 	case AppPart == "SecondFactor":
 		return ss.CheckExistingRole(RoleName)
 	case AppPart == "GetQRCode":
-		return ss.CheckExistingRole(RoleName)
-	case AppPart == "HandleRecipes":
-		return ss.CheckExistingRole(RoleName)
-	case AppPart == "HandleRecipesSearch":
-		return ss.CheckExistingRole(RoleName)
-	case AppPart == "HandleShoppingList":
 		return ss.CheckExistingRole(RoleName)
 	case AppPart == "HandleFiles":
 		return ss.CheckExistingRole(RoleName)
@@ -183,6 +189,18 @@ func (ss WServerSettings) CheckRoleForRead(RoleName string, AppPart string) bool
 // CheckRoleForChange - проверяет роль для разрешения изменений в разделе системы
 func (ss WServerSettings) CheckRoleForChange(RoleName string, AppPart string) bool {
 	switch {
+	case AppPart == "Countries":
+		return checkAdmin(RoleName)
+	case AppPart == "Addresses":
+		return checkAdmin(RoleName)
+	case AppPart == "ArtworkTypes":
+		return checkAdmin(RoleName)
+	case AppPart == "Authors":
+		return checkAdmin(RoleName)
+	case AppPart == "Currencies":
+		return checkAdmin(RoleName)
+	case AppPart == "Terms":
+		return checkAdmin(RoleName)
 	case AppPart == "CurrentUser":
 		return ss.CheckExistingRole(RoleName)
 	case AppPart == "CheckSecondFactor":
@@ -191,12 +209,6 @@ func (ss WServerSettings) CheckRoleForChange(RoleName string, AppPart string) bo
 		return ss.CheckExistingRole(RoleName)
 	case AppPart == "GetQRCode":
 		return ss.CheckExistingRole(RoleName)
-	case AppPart == "HandleRecipes":
-		return checkAdmin(RoleName)
-	case AppPart == "HandleRecipesSearch":
-		return checkAdmin(RoleName)
-	case AppPart == "HandleShoppingList":
-		return checkAdmin(RoleName)
 	case AppPart == "HandleFiles":
 		return checkAdmin(RoleName)
 	case AppPart == "HandleUsers":
@@ -211,6 +223,18 @@ func (ss WServerSettings) CheckRoleForChange(RoleName string, AppPart string) bo
 // CheckRoleForDelete - проверяет роль для разрешения доступа к удалению элементов раздела системы
 func (ss WServerSettings) CheckRoleForDelete(RoleName string, AppPart string) bool {
 	switch {
+	case AppPart == "Countries":
+		return checkAdmin(RoleName)
+	case AppPart == "Addresses":
+		return checkAdmin(RoleName)
+	case AppPart == "ArtworkTypes":
+		return checkAdmin(RoleName)
+	case AppPart == "Authors":
+		return checkAdmin(RoleName)
+	case AppPart == "Currencies":
+		return checkAdmin(RoleName)
+	case AppPart == "Terms":
+		return checkAdmin(RoleName)
 	case AppPart == "CurrentUser":
 		return ss.CheckExistingRole(RoleName)
 	case AppPart == "CheckSecondFactor":
@@ -219,12 +243,6 @@ func (ss WServerSettings) CheckRoleForDelete(RoleName string, AppPart string) bo
 		return ss.CheckExistingRole(RoleName)
 	case AppPart == "GetQRCode":
 		return ss.CheckExistingRole(RoleName)
-	case AppPart == "HandleRecipes":
-		return checkAdmin(RoleName)
-	case AppPart == "HandleRecipesSearch":
-		return checkAdmin(RoleName)
-	case AppPart == "HandleShoppingList":
-		return checkAdmin(RoleName)
 	case AppPart == "HandleFiles":
 		return checkAdmin(RoleName)
 	case AppPart == "HandleUsers":
