@@ -13,12 +13,13 @@ import (
 
 	"paintings-shop/internal/references"
 	"paintings-shop/internal/setup"
+
 	"paintings-shop/packages/files"
 	"paintings-shop/packages/gzipwrap"
+	"paintings-shop/packages/multilangtranslator"
 	"paintings-shop/packages/secondfactor"
 	"paintings-shop/packages/shared"
 	"paintings-shop/packages/signinupout"
-
 	"strings"
 	"syscall"
 	"time"
@@ -28,7 +29,7 @@ import (
 
 // Список типовых ошибок
 var (
-	ErrWrongArgumentFormat = errors.New("неверный формат данных для логина: ожидатся -admincred:example@example.ru@@password")
+	ErrWrongArgumentFormat = errors.New("incorrect data format for login: expected -admincred:example@example.ru@@password")
 )
 
 // main - главная точка входа в программу
@@ -56,13 +57,13 @@ func main() {
 	// Иначе просто читаем данные из файла settings.json
 	setup.InitialSettings(initpar)
 
-	if initpar.CleanTokens {
-		go signinupout.RegularConfirmTokensCleanup()
-	}
-
 	// Создаём пул соединений c СУБД
 	if setup.ServerSettings.SQL.Connected == false {
 		setup.ServerSettings.SQL.Connect(false)
+	}
+
+	if initpar.CleanTokens {
+		go signinupout.RegularConfirmTokensCleanup(setup.ServerSettings.SQL.ConnPool)
 	}
 
 	ServerSetup()
@@ -89,7 +90,7 @@ func ServerSetup() {
 		if setup.СheckExists("cert.pem") && setup.СheckExists("key.pem") {
 			//go run $(go env GOROOT)/src/crypto/tls/generate_cert.go --host=localhost
 			shared.CurrentPrefix = "https://"
-			log.Println("Запущен SSL веб сервер")
+			log.Println(multilangtranslator.TranslateString("encrypted webserver is up", setup.ServerSettings.Lang))
 			srv.Addr = fmt.Sprintf(":%v", setup.ServerSettings.HTTPS)
 
 			err := srv.ListenAndServeTLS("cert.pem", "key.pem")
@@ -101,7 +102,7 @@ func ServerSetup() {
 
 		} else {
 			shared.CurrentPrefix = "http://"
-			log.Println("Запущен веб сервер без шифрования")
+			log.Println(multilangtranslator.TranslateString("unencrypted webserver is up", setup.ServerSettings.Lang))
 			srv.Addr = fmt.Sprintf(":%v", setup.ServerSettings.HTTP)
 			err := srv.ListenAndServe()
 
@@ -132,7 +133,7 @@ func ServerSetup() {
 
 	setup.ServerSettings.SQL.Disconnect()
 
-	log.Println("Завершение работы сервера...")
+	log.Println(multilangtranslator.TranslateString("server is shutting down...", setup.ServerSettings.Lang))
 
 	os.Exit(0)
 }
@@ -147,8 +148,8 @@ func InitFrontendHandlers() {
 	http.Handle("/uploads/", http.StripPrefix("/uploads", http.FileServer(http.Dir("./public/uploads"))))
 
 	// Перенаправляем все запросы по разделам на индекс
-	// TODO
-	// Добавить новые пути навигации
+	http.HandleFunc("/recipes/", RedirectToIndex)
+	http.HandleFunc("/shopping-list/", RedirectToIndex)
 	http.HandleFunc("/admin/", RedirectToIndex)
 	http.HandleFunc("/auth/", RedirectToIndex)
 	http.HandleFunc("/confirm-email/", RedirectToIndex)
@@ -288,6 +289,6 @@ func SetAdminCredentials(runarg string, initpar *setup.InitParams) {
 		initpar.AdminPass = lp[1]
 	} else {
 		log.Println(lp)
-		shared.WriteErrToLog(ErrWrongArgumentFormat)
+		shared.WriteErrToLog(multilangtranslator.TranslateError(ErrWrongArgumentFormat, setup.ServerSettings.Lang))
 	}
 }

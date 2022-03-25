@@ -7,20 +7,31 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"paintings-shop/packages/multilangtranslator"
 )
 
 // Список общих типовых ошибок
 var (
-	ErrNotAllowedMethod       = errors.New("Запрошен недопустимый метод для файлов")
-	ErrNoKeyInParams          = errors.New("API ключ не указан в параметрах")
-	ErrWrongKeyInParams       = errors.New("API ключ не зарегистрирован")
-	ErrNotAuthorized          = errors.New("Пройдите авторизацию")
-	ErrNotAuthorizedTwoFactor = errors.New("Пройдите авторизацию по второму фактору")
-	ErrForbidden              = errors.New("Доступ запрещён")
-	ErrHeadersFetchNotFilled  = errors.New("Не заполнены обязательные параметры запроса списка файлов: Page, Limit")
-	ErrFkeyViolation          = errors.New("Нельзя удалять записи, на которые имеются ссылки")
-	ErroNoRowsInResult        = errors.New("Не найдено ни одной записи для удаления")
-	ErrHeadersNotFilled       = errors.New("Не заполнены обязательные заголовки запроса")
+	ErrNotAllowedMethod       = errors.New("http request method is not allowed")
+	ErrNoKeyInParams          = errors.New("http request does not contain api key parameter")
+	ErrWrongKeyInParams       = errors.New("api key is not registered")
+	ErrNotAuthorized          = errors.New("authorization required")
+	ErrNotAuthorizedTwoFactor = errors.New("two factor authorization required")
+	ErrForbidden              = errors.New("access forbidden")
+	ErrBadHttpRequest         = errors.New("bad http request")
+	ErrHeadersFetchNotFilled  = errors.New("http request does not contain required parameters: Page, Limit")
+	ErrHeadersNotFilled       = errors.New("http request does not contain required parameters")
+	ErrLimitOffsetInvalid     = errors.New("invalid http request parameters Limit and Offset")
+	ErrFkeyViolation          = errors.New("cannot delete record referenced from other tables")
+	ErroNoRowsInResult        = errors.New("nothing to delete")
+	ErrInvalidRequestJSON     = errors.New("invalid JSON in request body")
+)
+
+var (
+	MsgEntrySaved        = "entry saved"
+	MsgEntryDeleted      = "entry deleted"
+	MsgAllEntriesDeleted = "all entries deleted"
+	MsgEmailSent         = "email was sent"
 )
 
 // CurrentPrefix - префикс URL
@@ -45,11 +56,13 @@ func WriteErrToLog(err error) {
 }
 
 // HandleInternalServerError - обработчик внутренних ошибок сервера
-func HandleInternalServerError(w http.ResponseWriter, err error) bool {
+func HandleInternalServerError(ServerLanguage string, w http.ResponseWriter, r *http.Request, err error) bool {
+
+	locale := r.Header.Get("Lang")
 
 	if err != nil {
 
-		log.Println(err)
+		log.Println(multilangtranslator.TranslateError(err, ServerLanguage))
 
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -57,13 +70,13 @@ func HandleInternalServerError(w http.ResponseWriter, err error) bool {
 		Response := RequestResult{
 			Error: ErrorResponse{
 				Code:    http.StatusInternalServerError,
-				Message: "Internal server error",
+				Message: multilangtranslator.TranslateString("Internal server error", locale),
 			},
 		}
 
 		w.WriteHeader(Response.Error.Code)
 
-		WriteObjectToJSON(w, Response)
+		WriteObjectToJSON(ServerLanguage, w, r, Response)
 
 		return true
 	}
@@ -72,11 +85,13 @@ func HandleInternalServerError(w http.ResponseWriter, err error) bool {
 }
 
 // HandleBadRequestError - обработчик ошибки кривого запроса
-func HandleBadRequestError(w http.ResponseWriter, err error) bool {
+func HandleBadRequestError(ServerLanguage string, w http.ResponseWriter, r *http.Request, err error) bool {
+
+	locale := r.Header.Get("Lang")
 
 	if err != nil {
 
-		log.Println(err)
+		log.Println(multilangtranslator.TranslateError(err, ServerLanguage))
 
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -84,13 +99,13 @@ func HandleBadRequestError(w http.ResponseWriter, err error) bool {
 		Response := RequestResult{
 			Error: ErrorResponse{
 				Code:    http.StatusBadRequest,
-				Message: "Bad request",
+				Message: multilangtranslator.TranslateString(ErrBadHttpRequest.Error(), locale),
 			},
 		}
 
 		w.WriteHeader(Response.Error.Code)
 
-		WriteObjectToJSON(w, Response)
+		WriteObjectToJSON(ServerLanguage, w, r, Response)
 
 		return true
 	}
@@ -99,11 +114,13 @@ func HandleBadRequestError(w http.ResponseWriter, err error) bool {
 }
 
 // HandleOtherError - обработчик прочих ошибок
-func HandleOtherError(w http.ResponseWriter, message string, err error, statuscode int) bool {
+func HandleOtherError(ServerLanguage string, w http.ResponseWriter, r *http.Request, message string, err error, statuscode int) bool {
+
+	locale := r.Header.Get("Lang")
 
 	if err != nil {
 
-		log.Println(err)
+		log.Println(multilangtranslator.TranslateError(err, ServerLanguage))
 
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -111,13 +128,13 @@ func HandleOtherError(w http.ResponseWriter, message string, err error, statusco
 		Response := RequestResult{
 			Error: ErrorResponse{
 				Code:    statuscode,
-				Message: message,
+				Message: multilangtranslator.TranslateString(message, locale),
 			},
 		}
 
 		w.WriteHeader(Response.Error.Code)
 
-		WriteObjectToJSON(w, Response)
+		WriteObjectToJSON(ServerLanguage, w, r, Response)
 
 		return true
 	}
@@ -126,20 +143,22 @@ func HandleOtherError(w http.ResponseWriter, message string, err error, statusco
 }
 
 // HandleSuccessMessage - возвращает сообщение об успехе
-func HandleSuccessMessage(w http.ResponseWriter, message string) {
+func HandleSuccessMessage(ServerLanguage string, w http.ResponseWriter, r *http.Request, message string) {
+
+	locale := r.Header.Get("Lang")
 
 	w.Header().Set("Content-Type", "application/json")
 
 	Response := RequestResult{
 		Error: ErrorResponse{
 			Code:    200,
-			Message: message,
+			Message: multilangtranslator.TranslateString(message, locale),
 		},
 	}
 
-	log.Println(message)
+	log.Println(multilangtranslator.TranslateString(message, ServerLanguage))
 
-	WriteObjectToJSON(w, Response)
+	WriteObjectToJSON(ServerLanguage, w, r, Response)
 
 }
 
@@ -154,31 +173,31 @@ func FindInStringSlice(slice []string, val string) (int, bool) {
 }
 
 // WriteObjectToJSON - записывает в ответ произвольный объект
-func WriteObjectToJSON(w http.ResponseWriter, v interface{}) {
+func WriteObjectToJSON(ServerLanguage string, w http.ResponseWriter, r *http.Request, v interface{}) {
 
 	w.Header().Set("Content-Type", "application/json")
 
 	js, err := json.Marshal(v)
 
-	if HandleInternalServerError(w, err) {
+	if HandleInternalServerError(ServerLanguage, w, r, err) {
 		return
 	}
 
 	_, err = w.Write(js)
 
-	if HandleInternalServerError(w, err) {
+	if HandleInternalServerError(ServerLanguage, w, r, err) {
 		return
 	}
 }
 
 // WriteBufferToPNG - записывает двоичный буффер в поток ответа для формата png
-func WriteBufferToPNG(w http.ResponseWriter, b bytes.Buffer) {
+func WriteBufferToPNG(ServerLanguage string, w http.ResponseWriter, r *http.Request, b bytes.Buffer) {
 
 	w.Header().Set("Content-Type", "image/png")
 
 	_, err := w.Write(b.Bytes())
 
-	if HandleInternalServerError(w, err) {
+	if HandleInternalServerError(ServerLanguage, w, r, err) {
 		return
 	}
 

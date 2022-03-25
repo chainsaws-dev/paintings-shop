@@ -11,26 +11,23 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/lib/pq"
 )
 
 // Schemas - список схем, которые должны быть созданы перед созданием таблиц базы
 var Schemas = []string{
 	`public`,
 	`secret`,
-	`"references"`,
-	`finance`,
 }
 
 // PostgreSQLCreateTables - Создаём таблицы в базе данных
-func PostgreSQLCreateTables(dbc *pgxpool.Pool) error {
+func PostgreSQLCreateTables(dbc *pgxpool.Pool, locale string) error {
 
 	// Начало транзакции
 	dbc.Exec(context.Background(), "BEGIN")
 
 	log.Println("Создаём базу и схемы...")
 
-	err := PostgreSQLCreateSchemas(dbc)
+	err := PostgreSQLCreateSchemas(dbc, locale)
 
 	if err != nil {
 		return err
@@ -38,21 +35,13 @@ func PostgreSQLCreateTables(dbc *pgxpool.Pool) error {
 
 	log.Println("Создаём таблицы ...")
 
+	log.Println("\tДля схемы public ...")
+	// Создание таблиц для списка покупок и рецептов
+	PostgreSQLCreateTablesPublic(dbc)
+
 	log.Println("\tДля схемы secret ...")
 	// Создание таблиц для авторизации и админки
 	PostgreSQLCreateTablesSecret(dbc)
-
-	log.Println("\tДля схемы references ...")
-	// Создание справочников
-	PostgreSQLCreateTablesReferences(dbc)
-
-	log.Println("\tДля схемы public ...")
-	// Создание таблицы для списка картин
-	PostgreSQLCreateTablesPublic(dbc)
-
-	log.Println("\tДля схемы finance ...")
-	// Создание таблиц для финансов
-	PostgreSQLCreateTablesFinance(dbc)
 
 	// Фиксация транзакции
 	dbc.Exec(context.Background(), "COMMIT")
@@ -64,7 +53,7 @@ func PostgreSQLCreateTables(dbc *pgxpool.Pool) error {
 }
 
 // PostgreSQLCreateDatabase - создаём базу данных для СУБД PostgreSQL
-func PostgreSQLCreateDatabase(dbName string, dbc *pgxpool.Pool) {
+func PostgreSQLCreateDatabase(dbName string, dbc *pgxpool.Pool, locale string) {
 
 	if dbc != nil {
 		log.Println("Идёт создание базы данных...")
@@ -109,7 +98,7 @@ func PostgreSQLCreateDatabase(dbName string, dbc *pgxpool.Pool) {
 }
 
 // PostgreSQLDropDatabase - удаляет базу данных с заданным именем
-func PostgreSQLDropDatabase(dbName string, dbc *pgxpool.Pool) {
+func PostgreSQLDropDatabase(dbName string, dbc *pgxpool.Pool, locale string) {
 
 	if dbc != nil {
 
@@ -159,7 +148,7 @@ func PostgreSQLDropDatabase(dbName string, dbc *pgxpool.Pool) {
 }
 
 // PostgreSQLDropRole - удаляет роль с заданным именем
-func PostgreSQLDropRole(rolename string, dbc *pgxpool.Pool) {
+func PostgreSQLDropRole(rolename string, dbc *pgxpool.Pool, locale string) {
 
 	if dbc != nil {
 		var rq int
@@ -194,7 +183,7 @@ func PostgreSQLDropRole(rolename string, dbc *pgxpool.Pool) {
 }
 
 // PostgreSQLCreateSchemas - Создаём cхемы в базе данных
-func PostgreSQLCreateSchemas(dbc *pgxpool.Pool) error {
+func PostgreSQLCreateSchemas(dbc *pgxpool.Pool, locale string) error {
 
 	log.Println("Проверяем, что база пустая")
 
@@ -206,7 +195,7 @@ func PostgreSQLCreateSchemas(dbc *pgxpool.Pool) error {
 			WHERE 
 				table_schema = ANY($1);`
 
-	rows, err := dbc.Query(context.Background(), sqlreq, pq.Array(Schemas))
+	rows, err := dbc.Query(context.Background(), sqlreq, Schemas)
 
 	shared.WriteErrToLog(err)
 
@@ -234,7 +223,7 @@ func PostgreSQLCreateSchemas(dbc *pgxpool.Pool) error {
 }
 
 // PostgreSQLCreateRole - создание отдельной роли для базы данных
-func PostgreSQLCreateRole(roleName string, password string, dbName string, dbc *pgxpool.Pool) {
+func PostgreSQLCreateRole(roleName string, password string, dbName string, dbc *pgxpool.Pool, locale string) {
 
 	rows, err := dbc.Query(context.Background(), `SELECT COUNT(*) FROM pg_catalog.pg_roles WHERE  rolname = $1`, roleName)
 
@@ -271,19 +260,19 @@ func PostgreSQLCreateRole(roleName string, password string, dbName string, dbc *
 
 	PostgreSQLRollbackIfError(err, true, dbc)
 
-	sqlreq = fmt.Sprintf(`GRANT USAGE ON SCHEMA %s TO %s;`, strings.Join(Schemas, ", "), roleName)
+	sqlreq = fmt.Sprintf(`GRANT USAGE ON SCHEMA %s TO %s;`, "public, secret", roleName)
 
 	_, err = dbc.Exec(context.Background(), sqlreq)
 
 	PostgreSQLRollbackIfError(err, true, dbc)
 
-	sqlreq = fmt.Sprintf(`REVOKE CREATE ON SCHEMA %s FROM %s;`, strings.Join(Schemas, ", "), roleName)
+	sqlreq = fmt.Sprintf(`GRANT UPDATE, USAGE ON ALL SEQUENCES IN SCHEMA %s TO %s;`, "public, secret", roleName)
 
 	_, err = dbc.Exec(context.Background(), sqlreq)
 
 	PostgreSQLRollbackIfError(err, true, dbc)
 
-	sqlreq = fmt.Sprintf(`GRANT UPDATE, USAGE ON ALL SEQUENCES IN SCHEMA %s TO %s;`, strings.Join(Schemas, ", "), roleName)
+	sqlreq = fmt.Sprintf(`REVOKE CREATE ON SCHEMA %s FROM %s;`, "public, secret", roleName)
 
 	_, err = dbc.Exec(context.Background(), sqlreq)
 
@@ -335,14 +324,27 @@ func PostgreSQLCreateSchema(SchemaName string, dbc *pgxpool.Pool) {
 
 }
 
+// PostgreSQLInsertStatus - записывает статус с заданным именем
+//
+// Параметры:
+//
+// StatusName - имя статуса который нужно создать
+func PostgreSQLInsertStatus(StatusName string, dbc *pgxpool.Pool) {
+
+	log.Println("Записываем статус", StatusName)
+
+	sqlreq := `INSERT INTO "references".request_status(name) VALUES ($1);`
+
+	_, err := dbc.Exec(context.Background(), sqlreq, StatusName)
+
+	PostgreSQLRollbackIfError(err, true, dbc)
+
+}
+
 // PostgreSQLExecuteCreateStatement - выполняет sql запрос на создание таблицы и прекращает выполнение в случае ошибки
 func PostgreSQLExecuteCreateStatement(dbc *pgxpool.Pool, ncs NamedCreateStatement) {
 
-	if strings.Contains(ncs.TableName, "fill") {
-		log.Println("Заполняем таблицу", strings.ReplaceAll(ncs.TableName, "fill", ""))
-	} else {
-		log.Println("Создаём таблицу", ncs.TableName)
-	}
+	log.Println("Создаём таблицу", ncs.TableName)
 
 	_, err := dbc.Exec(context.Background(), ncs.CreateStatement)
 

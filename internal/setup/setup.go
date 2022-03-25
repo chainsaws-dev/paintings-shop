@@ -13,6 +13,7 @@ import (
 	"paintings-shop/packages/messages"
 	"paintings-shop/packages/shared"
 	"regexp"
+
 	"strconv"
 	"strings"
 )
@@ -326,7 +327,7 @@ func SetDefaultAdmin(login string, password string, websiteurl string) string {
 func StartCreateDatabase() error {
 
 	donech := make(chan bool)
-	go ServerSettings.SQL.CreateDatabase(donech)
+	go ServerSettings.SQL.CreateDatabase(donech, ServerSettings.Lang)
 
 	if <-donech {
 		log.Println("Процедура создания базы данных завершена")
@@ -341,7 +342,7 @@ func StartCreateDatabase() error {
 func StartDropDatabase() error {
 
 	donech := make(chan bool)
-	go ServerSettings.SQL.DropDatabase(donech)
+	go ServerSettings.SQL.DropDatabase(donech, ServerSettings.Lang)
 
 	if <-donech {
 		log.Println("Процедура удаления базы данных завершена")

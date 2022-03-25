@@ -9,10 +9,10 @@ import (
 
 // Список типовых ошибок
 var (
-	ErrRoleNotFound         = errors.New("роль с указанным именем не найдена")
-	ErrDatabaseNotSupported = errors.New("не реализована поддержка базы данных")
-	ErrDatabaseOffline      = errors.New("база данных недоступна")
-	ErrUsupportedDBType     = errors.New("указан неподдерживаемый тип базы данных")
+	ErrRoleNotFound         = errors.New("Роль с указанным именем не найдена")
+	ErrDatabaseNotSupported = errors.New("Не реализована поддержка базы данных")
+	ErrDatabaseOffline      = errors.New("База данных недоступна")
+	ErrUsupportedDBType     = errors.New("Указан неподдерживаемый тип базы данных")
 )
 
 // AutoFillRoles - автозаполняет список ролей для SQL сервера
@@ -36,14 +36,14 @@ func (SQLsrv *SQLServer) AutoFillRoles() {
 }
 
 // DropDatabase - автоматизировано удаляет базу и роли
-func (SQLsrv *SQLServer) DropDatabase(donech chan bool) {
+func (SQLsrv *SQLServer) DropDatabase(donech chan bool, locale string) {
 	switch {
 	case SQLsrv.Type == "PostgreSQL":
 		// Подключаемся без контекста базы данных
 		SQLsrv.Connect(true)
 
 		// Удаляем базу данных
-		databases.PostgreSQLDropDatabase(SQLsrv.DbName, SQLsrv.ConnPool)
+		databases.PostgreSQLDropDatabase(SQLsrv.DbName, SQLsrv.ConnPool, locale)
 		donech <- true
 
 	default:
@@ -52,7 +52,7 @@ func (SQLsrv *SQLServer) DropDatabase(donech chan bool) {
 }
 
 // CreateDatabase - Создаёт базу данных если её нет
-func (SQLsrv *SQLServer) CreateDatabase(donech chan bool) {
+func (SQLsrv *SQLServer) CreateDatabase(donech chan bool, locale string) {
 	switch {
 	case SQLsrv.Type == "PostgreSQL":
 
@@ -60,13 +60,13 @@ func (SQLsrv *SQLServer) CreateDatabase(donech chan bool) {
 		SQLsrv.Connect(true)
 
 		// Создаём базу данных
-		databases.PostgreSQLCreateDatabase(SQLsrv.DbName, SQLsrv.ConnPool)
+		databases.PostgreSQLCreateDatabase(SQLsrv.DbName, SQLsrv.ConnPool, locale)
 
 		// Подключаемся под базу данных
 		SQLsrv.Connect(false)
 
 		// Заполняем базу данных
-		err := databases.PostgreSQLCreateTables(SQLsrv.ConnPool)
+		err := databases.PostgreSQLCreateTables(SQLsrv.ConnPool, locale)
 
 		if err != nil {
 			if errors.Is(databases.ErrTablesAlreadyExist, err) {
@@ -153,19 +153,8 @@ func (SQLsrv *SQLServer) Disconnect() {
 
 // CheckRoleForRead - проверяет роль для разрешения доступа к разделу системы
 func (ss WServerSettings) CheckRoleForRead(RoleName string, AppPart string) bool {
+
 	switch {
-	case AppPart == "Addresses":
-		return ss.CheckExistingRole(RoleName)
-	case AppPart == "ArtworkTypes":
-		return ss.CheckExistingRole(RoleName)
-	case AppPart == "Authors":
-		return ss.CheckExistingRole(RoleName)
-	case AppPart == "Terms":
-		return ss.CheckExistingRole(RoleName)
-	case AppPart == "Currencies":
-		return ss.CheckExistingRole(RoleName)
-	case AppPart == "Countries":
-		return ss.CheckExistingRole(RoleName)
 	case AppPart == "CurrentUser":
 		return ss.CheckExistingRole(RoleName)
 	case AppPart == "CheckSecondFactor":
@@ -194,18 +183,6 @@ func (ss WServerSettings) CheckRoleForRead(RoleName string, AppPart string) bool
 // CheckRoleForChange - проверяет роль для разрешения изменений в разделе системы
 func (ss WServerSettings) CheckRoleForChange(RoleName string, AppPart string) bool {
 	switch {
-	case AppPart == "Addresses":
-		return checkAdmin(RoleName)
-	case AppPart == "ArtworkTypes":
-		return checkAdmin(RoleName)
-	case AppPart == "Authors":
-		return checkAdmin(RoleName)
-	case AppPart == "Terms":
-		return checkAdmin(RoleName)
-	case AppPart == "Currencies":
-		return checkAdmin(RoleName)
-	case AppPart == "Countries":
-		return checkAdmin(RoleName)
 	case AppPart == "CurrentUser":
 		return ss.CheckExistingRole(RoleName)
 	case AppPart == "CheckSecondFactor":
@@ -214,6 +191,12 @@ func (ss WServerSettings) CheckRoleForChange(RoleName string, AppPart string) bo
 		return ss.CheckExistingRole(RoleName)
 	case AppPart == "GetQRCode":
 		return ss.CheckExistingRole(RoleName)
+	case AppPart == "HandleRecipes":
+		return checkAdmin(RoleName)
+	case AppPart == "HandleRecipesSearch":
+		return checkAdmin(RoleName)
+	case AppPart == "HandleShoppingList":
+		return checkAdmin(RoleName)
 	case AppPart == "HandleFiles":
 		return checkAdmin(RoleName)
 	case AppPart == "HandleUsers":
@@ -228,18 +211,6 @@ func (ss WServerSettings) CheckRoleForChange(RoleName string, AppPart string) bo
 // CheckRoleForDelete - проверяет роль для разрешения доступа к удалению элементов раздела системы
 func (ss WServerSettings) CheckRoleForDelete(RoleName string, AppPart string) bool {
 	switch {
-	case AppPart == "Addresses":
-		return checkAdmin(RoleName)
-	case AppPart == "ArtworkTypes":
-		return checkAdmin(RoleName)
-	case AppPart == "Authors":
-		return checkAdmin(RoleName)
-	case AppPart == "Terms":
-		return checkAdmin(RoleName)
-	case AppPart == "Currencies":
-		return checkAdmin(RoleName)
-	case AppPart == "Countries":
-		return checkAdmin(RoleName)
 	case AppPart == "CurrentUser":
 		return ss.CheckExistingRole(RoleName)
 	case AppPart == "CheckSecondFactor":
@@ -248,6 +219,12 @@ func (ss WServerSettings) CheckRoleForDelete(RoleName string, AppPart string) bo
 		return ss.CheckExistingRole(RoleName)
 	case AppPart == "GetQRCode":
 		return ss.CheckExistingRole(RoleName)
+	case AppPart == "HandleRecipes":
+		return checkAdmin(RoleName)
+	case AppPart == "HandleRecipesSearch":
+		return checkAdmin(RoleName)
+	case AppPart == "HandleShoppingList":
+		return checkAdmin(RoleName)
 	case AppPart == "HandleFiles":
 		return checkAdmin(RoleName)
 	case AppPart == "HandleUsers":

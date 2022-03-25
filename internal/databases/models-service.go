@@ -1,7 +1,11 @@
 // Package databases - реализует весь функционал необходимый для взаимодействия с базами данных
 package databases
 
-import uuid "github.com/satori/go.uuid"
+import (
+	"paintings-shop/packages/authentication"
+
+	uuid "github.com/gofrs/uuid"
+)
 
 // User - тип для хранения данных о пользователе в базе данных
 type User struct {
@@ -14,6 +18,7 @@ type User struct {
 	Confirmed    bool
 	Disabled     bool
 	SecondFactor bool
+	Lang         string
 }
 
 // Users - тип для хранения списка пользователей
@@ -54,3 +59,14 @@ type NamedCreateStatement struct {
 
 // NamedCreateStatements - массив объектов с названием таблицы и кодом для её создания
 type NamedCreateStatements []NamedCreateStatement
+
+// SessionsResponse - структура возвращаемая в ответ на запрос сессий
+type SessionsResponse struct {
+	Sessions
+	Total  int
+	Offset int
+	Limit  int
+}
+
+// Sessions - структура описывающая список активных сессий
+type Sessions []authentication.ActiveToken

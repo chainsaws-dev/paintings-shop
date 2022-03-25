@@ -12,7 +12,7 @@ import (
 
 // Список типовых ошибок
 var (
-	ErrBasicFieldsNotFilled = errors.New("не заполнены обязательные поля, невозможно создать пользователя")
+	ErrBasicFieldsNotFilled = errors.New("не заполнены обязательные поля")
 )
 
 // CreateAdmin - создаём пользователя для администратора
@@ -33,6 +33,7 @@ func CreateAdmin(SQL *settings.SQLServer, Login string, Email string, Password s
 		Email:     Email,
 		Phone:     "",
 		Name:      Login,
+		Lang:      "ru",
 		IsAdmin:   true,
 		Confirmed: !ConfirmEnabled,
 	}
@@ -64,6 +65,7 @@ func CreateUser(SQL *settings.SQLServer, Login string, Email string, Password st
 		Email:     Email,
 		Phone:     "",
 		Name:      Login,
+		Lang:      "ru",
 		IsAdmin:   false,
 		Confirmed: !ConfirmEnabled,
 	}

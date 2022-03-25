@@ -71,7 +71,7 @@ func Authors(w http.ResponseWriter, req *http.Request) {
 
 					ID, err := strconv.Atoi(ItemID)
 
-					if shared.HandleInternalServerError(w, err) {
+					if shared.HandleInternalServerError(setup.ServerSettings.Lang, w, req, err) {
 						return
 					}
 
@@ -81,19 +81,19 @@ func Authors(w http.ResponseWriter, req *http.Request) {
 
 					if err != nil {
 						if errors.Is(err, databases.ErrAuthorNotFound) {
-							shared.HandleOtherError(w, err.Error(), err, http.StatusBadRequest)
+							shared.HandleOtherError(setup.ServerSettings.Lang, w, req, err.Error(), err, http.StatusBadRequest)
 							return
 						}
 
-						if shared.HandleInternalServerError(w, err) {
+						if shared.HandleInternalServerError(setup.ServerSettings.Lang, w, req, err) {
 							return
 						}
 					}
 
-					shared.WriteObjectToJSON(w, au)
+					shared.WriteObjectToJSON(setup.ServerSettings.Lang, w, req, au)
 
 				} else {
-					shared.HandleOtherError(w, shared.ErrHeadersNotFilled.Error(), shared.ErrHeadersNotFilled, http.StatusBadRequest)
+					shared.HandleOtherError(setup.ServerSettings.Lang, w, req, shared.ErrHeadersNotFilled.Error(), shared.ErrHeadersNotFilled, http.StatusBadRequest)
 					return
 				}
 
@@ -101,13 +101,13 @@ func Authors(w http.ResponseWriter, req *http.Request) {
 
 				Page, err := strconv.Atoi(PageStr)
 
-				if shared.HandleInternalServerError(w, err) {
+				if shared.HandleInternalServerError(setup.ServerSettings.Lang, w, req, err) {
 					return
 				}
 
 				Limit, err := strconv.Atoi(LimitStr)
 
-				if shared.HandleInternalServerError(w, err) {
+				if shared.HandleInternalServerError(setup.ServerSettings.Lang, w, req, err) {
 					return
 				}
 
@@ -117,26 +117,26 @@ func Authors(w http.ResponseWriter, req *http.Request) {
 
 				if err != nil {
 					if errors.Is(err, databases.ErrLimitOffsetInvalid) {
-						shared.HandleOtherError(w, err.Error(), err, http.StatusBadRequest)
+						shared.HandleOtherError(setup.ServerSettings.Lang, w, req, err.Error(), err, http.StatusBadRequest)
 						return
 					}
 
 					if errors.Is(err, databases.ErrAuthorNotFound) {
-						shared.HandleOtherError(w, err.Error(), err, http.StatusBadRequest)
+						shared.HandleOtherError(setup.ServerSettings.Lang, w, req, err.Error(), err, http.StatusBadRequest)
 						return
 					}
 
-					if shared.HandleInternalServerError(w, err) {
+					if shared.HandleInternalServerError(setup.ServerSettings.Lang, w, req, err) {
 						return
 					}
 				}
 
-				shared.WriteObjectToJSON(w, au)
+				shared.WriteObjectToJSON(setup.ServerSettings.Lang, w, req, au)
 
 			}
 
 		} else {
-			shared.HandleOtherError(w, shared.ErrForbidden.Error(), shared.ErrForbidden, http.StatusForbidden)
+			shared.HandleOtherError(setup.ServerSettings.Lang, w, req, shared.ErrForbidden.Error(), shared.ErrForbidden, http.StatusForbidden)
 		}
 
 	case req.Method == http.MethodPost:
@@ -148,20 +148,20 @@ func Authors(w http.ResponseWriter, req *http.Request) {
 
 			err = json.NewDecoder(req.Body).Decode(&au)
 
-			if shared.HandleOtherError(w, "Invalid JSON in request body", err, http.StatusBadRequest) {
+			if shared.HandleOtherError(setup.ServerSettings.Lang, w, req, shared.ErrInvalidRequestJSON.Error(), err, http.StatusBadRequest) {
 				return
 			}
 
 			au, err = databases.PostgreSQLAuthorsChange(au, setup.ServerSettings.SQL.ConnPool)
 
-			if shared.HandleInternalServerError(w, err) {
+			if shared.HandleInternalServerError(setup.ServerSettings.Lang, w, req, err) {
 				return
 			}
 
-			shared.WriteObjectToJSON(w, au)
+			shared.WriteObjectToJSON(setup.ServerSettings.Lang, w, req, au)
 
 		} else {
-			shared.HandleOtherError(w, shared.ErrForbidden.Error(), shared.ErrForbidden, http.StatusForbidden)
+			shared.HandleOtherError(setup.ServerSettings.Lang, w, req, shared.ErrForbidden.Error(), shared.ErrForbidden, http.StatusForbidden)
 		}
 
 	case req.Method == http.MethodDelete:
@@ -174,7 +174,7 @@ func Authors(w http.ResponseWriter, req *http.Request) {
 
 				ID, err := strconv.Atoi(ItemID)
 
-				if shared.HandleInternalServerError(w, err) {
+				if shared.HandleInternalServerError(setup.ServerSettings.Lang, w, req, err) {
 					return
 				}
 
@@ -182,28 +182,28 @@ func Authors(w http.ResponseWriter, req *http.Request) {
 
 				if err != nil {
 					if errors.Is(databases.ErrNoDeleteIfLinksExist, err) {
-						shared.HandleOtherError(w, err.Error(), err, http.StatusBadRequest)
+						shared.HandleOtherError(setup.ServerSettings.Lang, w, req, err.Error(), err, http.StatusBadRequest)
 						return
 					}
 
-					if shared.HandleInternalServerError(w, err) {
+					if shared.HandleInternalServerError(setup.ServerSettings.Lang, w, req, err) {
 						return
 					}
 				}
 
-				shared.HandleSuccessMessage(w, "Автор успешно удален")
+				shared.HandleSuccessMessage(setup.ServerSettings.Lang, w, req, shared.MsgEntryDeleted)
 
 			} else {
-				shared.HandleOtherError(w, shared.ErrHeadersNotFilled.Error(), shared.ErrHeadersNotFilled, http.StatusBadRequest)
+				shared.HandleOtherError(setup.ServerSettings.Lang, w, req, shared.ErrHeadersNotFilled.Error(), shared.ErrHeadersNotFilled, http.StatusBadRequest)
 				return
 			}
 
 		} else {
-			shared.HandleOtherError(w, shared.ErrForbidden.Error(), shared.ErrForbidden, http.StatusForbidden)
+			shared.HandleOtherError(setup.ServerSettings.Lang, w, req, shared.ErrForbidden.Error(), shared.ErrForbidden, http.StatusForbidden)
 		}
 
 	default:
-		shared.HandleOtherError(w, "Method is not allowed", shared.ErrNotAllowedMethod, http.StatusMethodNotAllowed)
+		shared.HandleOtherError(setup.ServerSettings.Lang, w, req, shared.ErrNotAllowedMethod.Error(), shared.ErrNotAllowedMethod, http.StatusMethodNotAllowed)
 	}
 
 }

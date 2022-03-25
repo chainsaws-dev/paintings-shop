@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	uuid "github.com/gofrs/uuid"
 	"github.com/jackc/pgx/v4/pgxpool"
-	uuid "github.com/satori/go.uuid"
 )
 
 // PostgreSQLCleanAccessToken - Удаляет заданный токен доступа
